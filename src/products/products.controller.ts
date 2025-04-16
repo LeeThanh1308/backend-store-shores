@@ -1,0 +1,74 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseInterceptors,
+  UploadedFiles,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
+import { ProductsService } from './products.service';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { UploadImagesRequiredValidationPipe } from 'src/common/validators/upload-images-required.validator';
+import { UploadImageValidationPipe } from 'src/common/validators/upload-image.validator';
+import { UploadImagesValidationPipe } from 'src/common/validators/upload-images.validator';
+
+@Controller('products')
+export class ProductsController {
+  constructor(private readonly productsService: ProductsService) {}
+
+  @Post()
+  @UseInterceptors(FilesInterceptor('files'))
+  async create(
+    @Body() createProductDto: CreateProductDto,
+    @UploadedFiles(new UploadImagesRequiredValidationPipe())
+    files: Express.Multer.File[],
+  ) {
+    return await this.productsService.create(createProductDto, files);
+  }
+
+  @Get()
+  async findAll(@Query('search') search: string, @Query('id') id: string) {
+    if (search) {
+      return await this.productsService.searchByKeyword(search);
+    }
+    if (id) {
+      return await this.productsService.findOne(+id);
+    }
+    return this.productsService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.productsService.findOne(+id);
+  }
+
+  @Patch(':id')
+  @UseInterceptors(FilesInterceptor('files'))
+  async update(
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+    @UploadedFiles(new UploadImagesValidationPipe())
+    files: Express.Multer.File[],
+  ) {
+    return await this.productsService.update(+id, updateProductDto, files);
+  }
+
+  @Delete()
+  async remove(@Body() data: { id: string; ids: number[] }) {
+    if (data.id) {
+      return await this.productsService.removeOne(+data.id);
+    }
+    if (data.ids) {
+      return await this.productsService.removeMany(data.ids);
+    }
+    throw new ConflictException('Please provide either id or ids.');
+  }
+}

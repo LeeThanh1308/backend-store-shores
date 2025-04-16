@@ -1,0 +1,44 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Document</title>
+  </head>
+  <style>
+    * { text-align: justify; color: black} .main { width: 100%; height: 100vh;justify-content: center; display: flex; margin: auto; } .content {
+    width: 100%; background-color: #fff;} .content_logo { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; }
+    .logo { width: 130px; height: 130px; } .logo img { width: 100%; height: 100%; background-color: #fff; } .logo { display: flex, justify-content:
+    center }
+  </style>
+  <body>
+    <div class='main'>
+      <div class='content'>
+        <h7>Phoenix xin chào bạn. </h7>
+
+        <p>Để lấy lại mật khẩu của bạn vui lòng nhập mã này:</p>
+        <div
+          style='
+            background-color: #ebebeb;
+            color: #333;
+            font-size: 40px;
+            letter-spacing: 8px;
+            padding: 16px;
+            text-align: center;
+          '
+        >
+          {{code}}
+        </div>
+
+        <p>
+          Lưu ý: Bạn có thể bỏ qua email này một cách an toàn. Có thể ai đó khác đã nhập địa chỉ email của bạn do nhầm lẫn.
+          <b>Mã xác minh sẽ hết hạn sau 1 giờ.</b>
+        </p>
+
+        <p>Vui lòng không trả lời email này.</p>
+
+        <p>Thanks</p>
+        <p class=''>The Stores Shop</p>
+      </div>
+    </div>
+  </body>
+</html>
