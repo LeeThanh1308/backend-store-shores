@@ -21,9 +21,9 @@ export const handleRegexSlug = (value) => {
     ?.trim(); // Xóa khoảng trắng đầu cuối
 };
 export const convertTextToLike = (text: string): string => {
-  return `${handleRegexSlug(text).replaceAll('', '%')}`;
+  return `${handleRegexSlug(text).replaceAll('', '%').replaceAll(' ', '%')}`;
 };
 
 export const convertTextToLikeVi = (text: string): string => {
-  return `${text.replaceAll('', '%')}`;
+  return `${text.replaceAll('', '%').replaceAll(' ', '%')}`;
 };

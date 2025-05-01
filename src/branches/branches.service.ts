@@ -86,4 +86,8 @@ export class BranchesService {
       throw new Error(error);
     }
   }
+
+  async handleCountTotalBranches() {
+    return await this.branchRepository.count();
+  }
 }

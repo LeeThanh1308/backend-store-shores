@@ -7,7 +7,7 @@ import { CreateProductSizeDto } from './dto/create-product-size.dto';
 import { UpdateProductSizeDto } from './dto/update-product-size.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ProductSize } from './entities/product-size.entity';
-import { In, Like, Repository } from 'typeorm';
+import { ILike, In, Like, Repository } from 'typeorm';
 import { generateMessage } from 'src/common/messages/index.messages';
 import { convertTextToLike, convertTextToLikeVi } from 'utils';
 
@@ -47,48 +47,39 @@ export class ProductSizesService {
     }
   }
 
-  async findSizesAndProduct(search: string = '') {
+  async findSizesAndProduct(search: string = '', productID: number) {
     try {
-      const arrayKeyword = search.split(';');
+      const searchToLike = Like(convertTextToLike(search));
       const whereProduct: any[] = [];
-      if (Number(arrayKeyword?.[1])) {
-        whereProduct.push({ id: +arrayKeyword?.[1] });
+      if (Number(search)) {
+        whereProduct.push({ id: +search });
       }
       return await this.productSizeRepository.find({
         where: [
           {
-            type: Like(convertTextToLike(arrayKeyword?.[0])),
-            product: [
-              ...whereProduct,
-              {
-                name: Like(convertTextToLikeVi(arrayKeyword?.[1])),
-              },
-              {
-                slug: Like(convertTextToLike(arrayKeyword?.[1])),
-              },
-            ],
+            type: searchToLike,
+            product: {
+              id: productID,
+            },
           },
         ],
-        relations: {
-          product: true,
-        },
-        select: {
-          type: true,
-          id: true,
-          isActive: true,
-          product: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        take: 5,
+        take: 10,
       });
     } catch (error) {
       throw new NotFoundException({
         message: `Không tìm thấy size ${search}`,
       });
     }
+  }
+
+  async findSizesWhereProductID(productID: number) {
+    return await this.productSizeRepository.find({
+      where: {
+        product: {
+          id: productID,
+        },
+      },
+    });
   }
 
   async searchByKeyword(keyword: string) {

@@ -114,4 +114,31 @@ export class ProductColorsService {
       throw new Error(error);
     }
   }
+
+  async handleFindColorByProductID(keyword: string, productID: number) {
+    const keywordToLike = Like(convertTextToLike(keyword));
+    return await this.productColorRepository.find({
+      where: [
+        {
+          name: Like(convertTextToLikeVi(keyword)),
+          products: {
+            id: productID,
+          },
+        },
+        {
+          name: keywordToLike,
+          products: {
+            id: productID,
+          },
+        },
+
+        {
+          hexCode: keywordToLike,
+          products: {
+            id: productID,
+          },
+        },
+      ],
+    });
+  }
 }

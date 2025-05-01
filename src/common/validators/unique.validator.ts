@@ -1,21 +1,27 @@
+import { DataSource, Not } from 'typeorm';
 import {
-  registerDecorator,
   ValidationArguments,
   ValidationOptions,
   ValidatorConstraint,
   ValidatorConstraintInterface,
+  registerDecorator,
 } from 'class-validator';
-import { DataSource } from 'typeorm';
 
 @ValidatorConstraint({ async: true }) // Dùng async để kiểm tra trong DB
 export class IsUniqueConstraint implements ValidatorConstraintInterface {
   constructor(private dataSource: DataSource) {}
 
   async validate(value: any, args: ValidationArguments) {
-    const [entity, field] = args.constraints; // Lấy entity và field
+    const whereConditions: any = {};
+    const [entity, field, id = 'id'] = args.constraints; // Lấy entity và field
+    const thisObject = args.object;
+    const valueFieldID = thisObject?.[id];
+    if (valueFieldID) {
+      whereConditions.id = Not(valueFieldID);
+    }
     const repo = this.dataSource.getRepository(entity);
     const record = await repo.findOne({
-      where: { [field]: value },
+      where: { [field]: value, ...whereConditions },
       select: ['id'],
     });
     return !record; // Nếu không có record nào trùng, thì hợp lệ
@@ -30,6 +36,7 @@ export class IsUniqueConstraint implements ValidatorConstraintInterface {
 export function IsUnique(
   entity: any,
   field: string,
+  id?: any,
   validationOptions?: ValidationOptions,
 ) {
   return function (object: Object, propertyName: string) {
@@ -37,7 +44,7 @@ export function IsUnique(
       target: object.constructor,
       propertyName: propertyName,
       options: validationOptions,
-      constraints: [entity, field],
+      constraints: [entity, field, id],
       validator: IsUniqueConstraint,
     });
   };

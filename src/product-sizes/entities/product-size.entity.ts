@@ -9,8 +9,9 @@ import {
 } from 'typeorm';
 
 import { BaseModel } from 'src/common/entities/BaseEntity';
+import { Cart } from 'src/carts/entities/cart.entity';
+import { Order } from 'src/orders/entities/order.entity';
 import { Product } from 'src/products/entities/product.entity';
-import { Store } from 'src/stores/entities/store.entity';
 import { StoreItem } from 'src/store-items/entities/store-item.entity';
 
 @Entity('product_sizes')
@@ -36,5 +37,11 @@ export class ProductSize extends BaseModel {
   product: Product;
 
   @OneToMany(() => StoreItem, (StoreItem) => StoreItem.size)
-  stores: StoreItem[];
+  items: StoreItem[];
+
+  @OneToMany(() => Cart, (cart) => cart.size)
+  carts: Cart[];
+
+  @OneToMany(() => Order, (order) => order.size)
+  orders: Order[];
 }

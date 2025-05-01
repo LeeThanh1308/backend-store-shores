@@ -1,12 +1,13 @@
 import {
-  IsString,
-  IsOptional,
-  Length,
   IsBoolean,
+  IsOptional,
+  IsString,
+  Length,
   Validate,
 } from 'class-validator';
-import { IsUnique } from 'src/common/validators/unique.validator';
+
 import { Category } from '../entities/category.entity';
+import { IsUnique } from 'src/common/validators/unique.validator';
 import { Transform } from 'class-transformer';
 
 export class CreateCategoryDto {

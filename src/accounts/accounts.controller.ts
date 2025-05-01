@@ -30,6 +30,7 @@ import { AuthGuard } from 'src/guards/auth.guard';
 import { UserRoles } from 'src/guards/roles.decorator';
 import { EnumRoles } from 'src/guards/user-role.enum';
 import { unlink } from 'fs';
+import { ForgetAccountDto } from './dto/forget-account.dto';
 
 @Controller('accounts')
 export class AccountsController {
@@ -47,7 +48,7 @@ export class AccountsController {
     try {
       const data =
         await this.accountsService.handleLoginAccount(loginAccountDto);
-      const { RT, ...args } = data;
+      const { RT, user, role, ...args } = data;
       res.cookie('RT', RT, {
         httpOnly: true,
         sameSite: 'strict',
@@ -58,7 +59,9 @@ export class AccountsController {
           exp: args.expAt,
           token: args.AT,
         },
-        exp: this.JWT_RT_EXP_SECOND,
+        role: role?.description,
+        user,
+        // exp: this.JWT_RT_EXP_SECOND,
       });
     } catch (e) {
       throw new NotFoundException({
@@ -74,6 +77,8 @@ export class AccountsController {
   async onRefreshToken(@Req() request: Request, @Res() res: Response) {
     try {
       const cookieHeader = await request.headers?.cookie;
+      console.log('Start');
+      console.log(cookieHeader);
       const refreshToken =
         cookieHeader
           ?.split(';')
@@ -98,7 +103,7 @@ export class AccountsController {
           exp: process.env.JWT_AT_EXP_SECOND,
         });
     } catch (e) {
-      throw new ForbiddenException({ message: 'You do not have access' });
+      throw e;
     }
   }
 
@@ -278,9 +283,9 @@ export class AccountsController {
         user.id,
         user.rating,
       );
-      const users = await this.accountsService.handleFindAndCountUsers();
+      const count = await this.accountsService.handleFindAndCountUsers();
       const roleSet = await this.accountsService.handleGetRoleSet(user.rating);
-      return { data, users, roleSet };
+      return { data, count, roleSet };
     } catch (e) {
       // console.log(e);
       throw new NotFoundException(e);
@@ -312,7 +317,7 @@ export class AccountsController {
     try {
       const user = request.user;
       const result = await this.accountsService.handleLogout(user.id);
-      return response.cookie('RT', '', { maxAge: 0 }).json(result);
+      return response.status(200).json(result);
     } catch (e) {
       throw new BadRequestException({
         message: 'Đăng xuất tài khoản thất bại!',
@@ -349,18 +354,20 @@ export class AccountsController {
     }
   }
 
-  @Patch('edit/:id')
+  @Patch('edit')
   @HttpCode(200)
   @UseGuards(AuthGuard)
   @UserRoles([EnumRoles.CEO, EnumRoles.MANAGER])
   async onUpdateInfoUser(
     @Req() request,
     @Body() updateAccountDto: UpdateAccountDto,
-    @Param('id') id: any,
   ) {
     try {
       const user = request.user;
-      const { fullname, birthday, phone, email, gender } = updateAccountDto;
+      const { fullname, birthday, phone, email, gender, id } = updateAccountDto;
+      if (!id) {
+        throw new Error();
+      }
       return await this.accountsService.handleUpdateInfoUser(
         id,
         { fullname, birthday, phone, email, gender },
@@ -376,15 +383,10 @@ export class AccountsController {
   @HttpCode(200)
   @UseGuards(AuthGuard)
   @UserRoles([EnumRoles.CEO, EnumRoles.MANAGER])
-  async onCreateAccount(
-    @Req() request,
-    @Body() createAccountDto: CreateAccountDto,
-  ) {
+  async onCreateAccount(@Body() createAccountDto: CreateAccountDto) {
     try {
-      const { fullname, password, birthday, gender, phone, email } =
-        createAccountDto;
       return await this.accountsService.handleCreateAccount(
-        { fullname, password, birthday, gender, phone, email },
+        createAccountDto,
         true,
       );
     } catch (err) {
@@ -400,13 +402,12 @@ export class AccountsController {
 
   @Post('forget')
   @HttpCode(200)
-  async onCreateVerifyForgetPass(
-    @Body() createVerifyForgetPassDto: { email: string; phone: string },
-  ) {
+  async onCreateVerifyForgetPass(@Body() forgetAccountDto: ForgetAccountDto) {
     try {
-      const result = await this.accountsService.handleCreateVerifyForgetPass(
-        createVerifyForgetPassDto,
-      );
+      const result =
+        await this.accountsService.handleCreateVerifyForgetPass(
+          forgetAccountDto,
+        );
       return result;
     } catch (err) {
       throw new HttpException(
@@ -438,5 +439,10 @@ export class AccountsController {
         message: 'Có lỗi xảy ra xin vui lòng thử lại sau.',
       });
     }
+  }
+
+  @Get('count')
+  async onCountTotalAccounts() {
+    return await this.accountsService.handleCountTotalAccounts();
   }
 }

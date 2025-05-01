@@ -33,6 +33,17 @@ export class ProductColorsController {
     return await this.productColorsService.findOne(+id);
   }
 
+  @Get('products/:productID')
+  async onFindColorByProductID(
+    @Param('productID') productID: string,
+    @Query('search') search: string,
+  ) {
+    return await this.productColorsService.handleFindColorByProductID(
+      search,
+      +productID,
+    );
+  }
+
   @Patch(':id')
   async update(
     @Param('id') id: string,

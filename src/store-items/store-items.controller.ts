@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Req,
+  Query,
+  ConflictException,
+} from '@nestjs/common';
 import { StoreItemsService } from './store-items.service';
 import { CreateStoreItemDto } from './dto/create-store-item.dto';
 import { UpdateStoreItemDto } from './dto/update-store-item.dto';
@@ -8,27 +19,37 @@ export class StoreItemsController {
   constructor(private readonly storeItemsService: StoreItemsService) {}
 
   @Post()
-  create(@Body() createStoreItemDto: CreateStoreItemDto) {
-    return this.storeItemsService.create(createStoreItemDto);
+  async create(@Body() createStoreItemDto: CreateStoreItemDto) {
+    return await this.storeItemsService.create(createStoreItemDto);
   }
 
   @Get()
-  findAll() {
-    return this.storeItemsService.findAll();
+  async findAll(@Query('search') search: string) {
+    if (search) return await this.storeItemsService.searchByKeyword(search);
+    return await this.storeItemsService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.storeItemsService.findOne(+id);
+  async findOne(@Param('id') id: string) {
+    return await this.storeItemsService.findOne(+id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateStoreItemDto: UpdateStoreItemDto) {
-    return this.storeItemsService.update(+id, updateStoreItemDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateStoreItemDto: UpdateStoreItemDto,
+  ) {
+    return await this.storeItemsService.update(+id, updateStoreItemDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.storeItemsService.remove(+id);
+  @Delete()
+  async remove(@Body() data: { id: string; ids: number[] }) {
+    if (data.id) {
+      return await this.storeItemsService.removeOne(+data.id);
+    }
+    if (data.ids) {
+      return await this.storeItemsService.removeMany(data.ids);
+    }
+    throw new ConflictException('Please provide either id or ids.');
   }
 }

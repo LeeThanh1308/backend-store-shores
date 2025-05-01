@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { FilesService } from './files.service';
 import { Response } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Controller('files')
 export class FilesController {
@@ -16,18 +18,13 @@ export class FilesController {
   @Get('cdn')
   getFile(@Query('name') name: string, @Res() res: Response) {
     try {
-      res.sendFile(name, { root: './uploads' }, (err) => {
-        if (err) {
-          return res.status(404).json({
-            message: 'File not found',
-            status: 404,
-          });
-        }
-      });
+      const filePath = path.resolve('./uploads', name);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: 'File not found' });
+      }
+      return res.sendFile(filePath);
     } catch (error) {
-      throw new NotFoundException({
-        message: 'File not found',
-      });
+      return error;
     }
   }
 

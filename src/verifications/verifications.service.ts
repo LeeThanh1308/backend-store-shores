@@ -23,6 +23,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { differenceInMinutes, differenceInSeconds } from 'date-fns';
 import { UpdateAccountDto } from 'src/accounts/dto/update-account.dto';
 import { DataVerify } from 'src/data_verify/entities/data_verify.entity';
+import { CreateDataVerifyDto } from 'src/data_verify/dto/create-data_verify.dto';
 
 @Injectable()
 export class VerificationsService {
@@ -126,7 +127,6 @@ export class VerificationsService {
         data: true,
       },
       where: { id: id, code: verifyCode, total_verify: MoreThan(0) },
-      select: ['id', 'data'],
     });
     if (!dataVerify) {
       if (handleCheckId.total_verify > 0) {
@@ -139,7 +139,7 @@ export class VerificationsService {
     }
     if (dataVerify.data) {
       const resultCreAcc = await this.accountService.handleCreateAccount(
-        { ...dataVerify.data },
+        dataVerify.data,
         false,
         Number(id),
       );
@@ -169,57 +169,62 @@ export class VerificationsService {
     }
   }
 
-  async handleRefreshCode(id: any) {
-    await this.handleClearVerify();
-    const curremtDate = new Date();
-    curremtDate.setSeconds(
-      curremtDate.getSeconds() - Number(process.env.TIME_REFRESH_SECOND),
-    );
-    const onFreshToken = await this.verificationsRepository.findOne({
-      where: { id: id, updatedAt: LessThanOrEqual(curremtDate) },
-      select: ['email', 'data', 'forget_password'],
-    });
-    console.log(onFreshToken);
+  async handleRefreshCode(id: number) {
+    try {
+      await this.handleClearVerify();
+      const curremtDate = new Date();
+      curremtDate.setSeconds(
+        curremtDate.getSeconds() - Number(process.env.TIME_REFRESH_SECOND),
+      );
+      const onFreshToken = await this.verificationsRepository.findOne({
+        where: { id: +id, updatedAt: LessThanOrEqual(curremtDate) },
+        relations: {
+          data: true,
+        },
+      });
 
-    if (!onFreshToken) {
-      throw new Error();
-    }
-    const codeVerify = Math.floor(100000 + Math.random() * 900000);
-    if (!onFreshToken.forget_password) {
-      const result = await this.handleSendEmail(
-        onFreshToken.email,
-        codeVerify,
-        onFreshToken.data.fullname,
-      );
-      if (!result) {
+      if (!onFreshToken) {
         throw new Error();
       }
-    } else {
-      const result = await this.handleSendEmailForget(
-        onFreshToken.email,
-        codeVerify,
+      const codeVerify = Math.floor(100000 + Math.random() * 900000);
+      if (!onFreshToken?.forget_password) {
+        const result = await this.handleSendEmail(
+          onFreshToken?.email,
+          codeVerify,
+          onFreshToken?.data?.fullname,
+        );
+        if (!result) {
+          throw new Error();
+        }
+      } else {
+        const result = await this.handleSendEmailForget(
+          onFreshToken?.email,
+          codeVerify,
+        );
+        if (!result) {
+          throw new Error();
+        }
+      }
+      const dataVerify = await this.verificationsRepository.update(
+        { id: id },
+        {
+          code: codeVerify,
+          total_verify: 3,
+        },
       );
-      if (!result) {
+      if (!dataVerify) {
         throw new Error();
       }
+      return {
+        message: 'Refresh code thành công!',
+        data: await this.handleCheckRefreshCode(+id),
+      };
+    } catch (error) {
+      console.log(error);
     }
-    const dataVerify = await this.verificationsRepository.update(
-      { id: id },
-      {
-        code: codeVerify,
-        total_verify: 3,
-      },
-    );
-    if (!dataVerify) {
-      throw new Error();
-    }
-    return {
-      message: 'Refresh code thành công!',
-      data: await this.handleCheckRefreshCode(id),
-    };
   }
 
-  async handleCheckRefreshCode(id: string) {
+  async handleCheckRefreshCode(id: number) {
     await this.handleClearVerify();
     const curremtDate = new Date();
     const curremtVerify = new Date();
@@ -230,22 +235,18 @@ export class VerificationsService {
     if (!result) {
       throw new Error();
     }
-    const expRefreshToken = differenceInSeconds(
-      result.updatedAt,
-      curremtDate.setMinutes(
-        curremtDate.getMinutes() - this.TIME_REFRESH_SECOND / 60,
-      ),
+    const updatedAt = new Date(result.updatedAt);
+    const createdAt = new Date(result.createdAt);
+    const expRefreshToken = new Date(
+      updatedAt.getTime() + this.TIME_REFRESH_SECOND * 1000,
     );
-    const expVerify = differenceInSeconds(
-      result.createdAt,
-      curremtVerify.setMinutes(
-        curremtVerify.getMinutes() - this.TIME_VERIFY_SECOND / 60,
-      ),
+    const expVerify = new Date(
+      createdAt.getTime() + this.TIME_VERIFY_SECOND * 1000,
     );
     return {
       email: this.handleHiddenEmail(result.email),
-      expRefreshToken: expRefreshToken <= 0 ? 0 : expRefreshToken,
-      expVerify: expVerify <= 0 ? 0 : expVerify,
+      expRefreshToken: expRefreshToken,
+      expVerify: expVerify,
       total: result.total_verify,
     };
   }
@@ -285,7 +286,7 @@ export class VerificationsService {
     return true;
   }
 
-  async findOne(filed: UpdateAccountDto) {
+  async findOne(filed: Partial<Verifications>) {
     return await this.verificationsRepository.findOneBy(filed);
   }
 

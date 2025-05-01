@@ -10,6 +10,7 @@ import {
 import { BaseModel } from 'src/common/entities/BaseEntity';
 import { Category } from 'src/categories/entities/category.entity';
 import { Comment } from 'src/comments/entities/comment.entity';
+import { Order } from 'src/orders/entities/order.entity';
 import { ProductBrand } from 'src/product-brands/entities/product-brand.entity';
 import { ProductColor } from 'src/product-colors/entities/product-color.entity';
 import { ProductImage } from 'src/product-images/entities/product-image.entity';
@@ -45,7 +46,7 @@ export class Product extends BaseModel {
   isActive: boolean;
 
   @OneToMany(() => StoreItem, (store) => store.product)
-  stores: StoreItem[];
+  items: StoreItem[];
 
   @OneToMany(() => Comment, (comment) => comment.product, {
     cascade: true, // 👈 Quan trọng nếu bạn muốn tạo luôn hình ảnh khi tạo product
@@ -64,6 +65,9 @@ export class Product extends BaseModel {
     onDelete: 'CASCADE',
   })
   images: ProductImage[];
+
+  @OneToMany(() => Order, (order) => order.product)
+  orders: Order[];
 
   @ManyToOne(() => ProductBrand, (productBrand) => productBrand.products)
   brand: ProductBrand;

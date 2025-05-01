@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { BranchesModule } from './branches/branches.module';
+import { CartsModule } from './carts/carts.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CommentsModule } from './comments/comments.module';
 import { DataSource } from 'typeorm';
@@ -14,6 +15,7 @@ import { IsUniqueConstraint } from './common/validators/unique.validator';
 import { LikesModule } from './likes/likes.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { Module } from '@nestjs/common';
+import { OrdersModule } from './orders/orders.module';
 import { ProductBrandsModule } from './product-brands/product-brands.module';
 import { ProductColorsModule } from './product-colors/product-colors.module';
 import { ProductImagesModule } from './product-images/product-images.module';
@@ -27,6 +29,7 @@ import { TargetGroupsModule } from './target-groups/target-groups.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { VerificationsModule } from './verifications/verifications.module';
 import { join } from 'path';
+import { SlidersModule } from './sliders/sliders.module';
 
 @Module({
   imports: [
@@ -86,6 +89,9 @@ import { join } from 'path';
     TargetGroupsModule,
     FilesModule,
     StoreItemsModule,
+    CartsModule,
+    OrdersModule,
+    SlidersModule,
   ],
   controllers: [AppController],
   providers: [AppService, IsUniqueConstraint],

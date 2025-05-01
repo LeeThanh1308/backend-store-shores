@@ -33,9 +33,15 @@ export class ProductSizesController {
   //   return await this.productSizesService.findOne(+id);
   // }
 
-  @Get('product')
-  async findSizesAndProduct(@Query('search') search: string) {
-    return await this.productSizesService.findSizesAndProduct(search);
+  @Get('products/:id')
+  async findSizesAndProduct(
+    @Query('search') search: string,
+    @Param('id') id: string,
+  ) {
+    if (id && !search) {
+      return await this.productSizesService.findSizesWhereProductID(+id);
+    }
+    return await this.productSizesService.findSizesAndProduct(search, +id);
   }
 
   @Patch(':id')

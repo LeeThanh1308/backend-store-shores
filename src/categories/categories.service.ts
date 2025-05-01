@@ -239,4 +239,8 @@ export class CategoriesService {
       throw new Error(error);
     }
   }
+
+  async handleCountTotalCategories() {
+    return await this.categoryRepository.count();
+  }
 }

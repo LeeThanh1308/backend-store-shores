@@ -1,8 +1,10 @@
 import { Column, Entity, ManyToMany, OneToMany } from 'typeorm';
 
 import { BaseModel } from 'src/common/entities/BaseEntity';
+import { Cart } from 'src/carts/entities/cart.entity';
 import { Product } from 'src/products/entities/product.entity';
 import { ProductImage } from 'src/product-images/entities/product-image.entity';
+import { StoreItem } from 'src/store-items/entities/store-item.entity';
 
 @Entity('product_colors')
 export class ProductColor extends BaseModel {
@@ -16,6 +18,15 @@ export class ProductColor extends BaseModel {
     onDelete: 'CASCADE',
   })
   images: ProductImage[];
+
+  @OneToMany(() => Cart, (cart) => cart.color)
+  carts: Cart[];
+
+  @OneToMany(() => StoreItem, (storeItem) => storeItem.color, {
+    cascade: true,
+    onDelete: 'CASCADE',
+  })
+  items: StoreItem[];
 
   @ManyToMany(() => Product, (product) => product.colors, {
     onDelete: 'CASCADE',

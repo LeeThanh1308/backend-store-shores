@@ -1,4 +1,11 @@
-import { IsEmail, IsNumber, IsObject, ValidateNested } from 'class-validator';
+import {
+  IsEmail,
+  IsInt,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  ValidateNested,
+} from 'class-validator';
 
 import { Accounts } from 'src/accounts/entities/account.entity';
 import { CreateAccountDto } from 'src/accounts/dto/create-account.dto';
@@ -7,7 +14,7 @@ import { Type } from 'class-transformer';
 
 export class CreateVerificationDto {
   @IsEmail()
-  @IsUnique(Accounts, 'email')
+  @IsUnique(Accounts, 'email', 'id')
   email: string;
 
   @IsNumber()

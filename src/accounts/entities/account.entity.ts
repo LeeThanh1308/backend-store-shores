@@ -12,8 +12,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { Cart } from 'src/carts/entities/cart.entity';
 import { Comment } from 'src/comments/entities/comment.entity';
 import { Like } from 'src/likes/entities/like.entity';
+import { Order } from 'src/orders/entities/order.entity';
 import { Roles } from 'src/roles/entities/role.entity';
 import { Store } from 'src/stores/entities/store.entity';
 
@@ -49,7 +51,7 @@ export class Accounts {
   @Column({ nullable: false, unique: true })
   usid: string;
 
-  @Column({ nullable: true, type: 'text' })
+  @Column({ nullable: true, type: 'text', select: false })
   refresh_token?: string;
 
   @CreateDateColumn()
@@ -62,14 +64,6 @@ export class Accounts {
   @JoinColumn()
   roles: Roles;
 
-  // @OneToOne(() => Premises, (premises) => premises.manage)
-  // @JoinColumn()
-  // premise: Premises;
-
-  // @ManyToOne(() => Premises, (premises) => premises.staff)
-  // @JoinColumn()
-  // premises: Premises[];
-
   @OneToMany(() => Store, (store) => store.createdBy)
   stockIn: Store[];
 
@@ -78,4 +72,10 @@ export class Accounts {
 
   @OneToMany(() => Comment, (comment) => comment.account)
   comments: Comment[];
+
+  @OneToMany(() => Cart, (cart) => cart.account)
+  carts: Cart[];
+
+  @OneToMany(() => Order, (order) => order.account)
+  orders: Order[];
 }

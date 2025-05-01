@@ -19,6 +19,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { UploadImagesRequiredValidationPipe } from 'src/common/validators/upload-images-required.validator';
 import { UploadImageValidationPipe } from 'src/common/validators/upload-image.validator';
 import { UploadImagesValidationPipe } from 'src/common/validators/upload-images.validator';
+import { FiltersProductDto } from './dto/filters-product.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -35,20 +36,32 @@ export class ProductsController {
   }
 
   @Get()
-  async findAll(@Query('search') search: string, @Query('id') id: string) {
+  async findAll(
+    @Query('search') search: string,
+    @Query('id') id: string,
+    @Query('slug') slug: string,
+  ) {
     if (search) {
       return await this.productsService.searchByKeyword(search);
+    }
+    if (slug) {
+      return await this.productsService.findProductBySlug(slug);
     }
     if (id) {
       return await this.productsService.findOne(+id);
     }
-    return this.productsService.findAll();
+    return await this.productsService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.productsService.findOne(+id);
+  @Post('search')
+  async searchFilter(@Body() filtersProductDto: FiltersProductDto) {
+    return await this.productsService.searchFilter(filtersProductDto);
   }
+
+  // @Get(':id')
+  // findOne(@Param('id') id: string) {
+  //   return this.productsService.findOne(+id);
+  // }
 
   @Patch(':id')
   @UseInterceptors(FilesInterceptor('files'))
@@ -70,5 +83,23 @@ export class ProductsController {
       return await this.productsService.removeMany(data.ids);
     }
     throw new ConflictException('Please provide either id or ids.');
+  }
+
+  @Get('trendings')
+  async onGetTrendings(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+  ) {
+    return await this.productsService.handleGetTrendings(page, limit);
+  }
+
+  @Get('brands')
+  async onGetProductBrands() {
+    return await this.productsService.handleGetProductBrands();
+  }
+
+  @Get('count')
+  async onCountTotalProducts() {
+    return await this.productsService.handleCountTotalProducts();
   }
 }

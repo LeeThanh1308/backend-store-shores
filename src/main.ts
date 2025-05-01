@@ -1,3 +1,5 @@
+import * as bodyParser from 'body-parser';
+
 import {
   BadRequestException,
   ConflictException,
@@ -13,6 +15,8 @@ import { useContainer } from 'class-validator';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const port = process.env.PORT ?? 3000;
+  app.use(bodyParser.json({ limit: '50mb' }));
+  app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
   app.enableCors({
     origin: true,
     methods: ['*'],

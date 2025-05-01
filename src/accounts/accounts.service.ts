@@ -43,8 +43,25 @@ export class AccountsService {
     await queryRunner.startTransaction();
     try {
       const result = await this.accountsRepository.findOne({
-        where: { email: loginAccountDto.email },
-        select: ['password', 'id', 'ban'],
+        relations: {
+          roles: true,
+        },
+        where: [
+          { email: loginAccountDto.emailAndPhone },
+          { phone: loginAccountDto.emailAndPhone },
+        ],
+        select: [
+          'password',
+          'id',
+          'ban',
+          'fullname',
+          'password',
+          'gender',
+          'phone',
+          'birthday',
+          'email',
+          'avatar',
+        ],
       });
       if (!result) {
         throw new Error();
@@ -77,11 +94,15 @@ export class AccountsService {
         throw new Error();
       }
       await queryRunner.commitTransaction();
+      const { roles, ...user } = result;
+      const { fullname, gender, phone, birthday, email, avatar } = user;
       return {
         message: 'Đăng nhập tài khoản thành công!',
         AT,
         RT,
         expAt,
+        role: roles,
+        user: { fullname, gender, phone, birthday, email, avatar },
       };
     } catch (e) {
       await queryRunner.rollbackTransaction();
@@ -248,7 +269,7 @@ export class AccountsService {
     });
   }
 
-  async handleUpdateAccount(id: string, updateAccountDto: UpdateAccountDto) {
+  async handleUpdateAccount(id: string, updateAccountDto: Partial<Accounts>) {
     const data = await this.accountsRepository.update(id, {
       refresh_token: updateAccountDto.refresh_token,
     });
@@ -481,10 +502,8 @@ export class AccountsService {
           ),
         );
         return {
-          field: {
-            message: 'Vui lòng thử lại sau 1h.',
-            exp: expVerify,
-          },
+          message: 'Vui lòng thử lại sau 1h.',
+          exp: expVerify,
         };
       }
 
@@ -593,5 +612,13 @@ export class AccountsService {
     }
     // return await bcrypt.compare(data.prevPass, account.password);
     throw new Error();
+  }
+
+  async handleCountTotalAccounts() {
+    return await this.accountsRepository.count({
+      where: {
+        roles: IsNull(),
+      },
+    });
   }
 }

@@ -49,4 +49,8 @@ export class BranchesController {
       throw new BadRequestException('Please provide either id or ids.');
     }
   }
+  @Get('count')
+  async onCountTotalBranches() {
+    return await this.branchesService.handleCountTotalBranches();
+  }
 }

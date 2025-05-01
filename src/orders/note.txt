@@ -1,0 +1,16 @@
+await this.orderRepository
+              .createQueryBuilder('order')
+              .select('DATE(order.createdAt)', 'date') // chỉ lấy ngày, bỏ giờ
+              .addSelect('SUM(order.totalAmount)', 'totalAmount')
+              .addSelect('SUM(order.quantity)', 'totalQuantity')
+              .leftJoin('order.product', 'product')
+              .leftJoin('order.size', 'size')
+              .addSelect([
+                'product.id',
+                'product.costPrice as productCostPrice',
+                'size.costPrice as sizeCostPrice',
+              ])
+              .addGroupBy('DATE(order.createdAt)')
+              .addGroupBy('product.id')
+              .orderBy('date', 'ASC')
+              .getRawMany();

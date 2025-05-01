@@ -74,4 +74,9 @@ export class CategoriesController {
       throw new BadRequestException('Please provide either id or ids.');
     }
   }
+
+  @Get('count')
+  async onCountTotalCategories() {
+    return await this.categoriesService.handleCountTotalCategories();
+  }
 }

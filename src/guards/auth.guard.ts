@@ -6,22 +6,25 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { DataSource, Repository } from 'typeorm';
+
+import { Accounts } from 'src/accounts/entities/account.entity';
+import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
+import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { UserRoles } from './roles.decorator';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Accounts } from 'src/accounts/entities/account.entity';
-import { Repository } from 'typeorm';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
+  private readonly accountsRepository: Repository<Accounts>;
   constructor(
-    @InjectRepository(Accounts)
-    private readonly accountsRepository: Repository<Accounts>,
+    private readonly dataSource: DataSource,
     private jwtService: JwtService,
     private readonly reflector: Reflector,
-  ) {}
+  ) {
+    this.accountsRepository = this.dataSource.getRepository(Accounts);
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const roleApi = this.reflector.get(UserRoles, context.getHandler());

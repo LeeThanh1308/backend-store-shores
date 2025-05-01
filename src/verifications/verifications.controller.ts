@@ -29,12 +29,11 @@ export class VerificationsController {
     @Param('code') code: number,
     @Body() password?: { password?: string },
   ) {
-    console.log(id, code, password);
     try {
       if (password?.password) {
         return await this.verificationsService.handleVerifyEmail(
-          id,
-          code,
+          +id,
+          +code,
           password?.password,
         );
       } else {
@@ -48,8 +47,9 @@ export class VerificationsController {
   @Get('refresh/:id')
   async onRefresh(@Param('id') id: string) {
     try {
-      return await this.verificationsService.handleRefreshCode(id);
+      return await this.verificationsService.handleRefreshCode(+id);
     } catch (e) {
+      console.log(e);
       throw new HttpException(
         {
           message: e
@@ -64,7 +64,7 @@ export class VerificationsController {
   @Get('checkVerify/:id')
   async onCheckRefreshCode(@Param('id') id: string) {
     try {
-      return await this.verificationsService.handleCheckRefreshCode(id);
+      return await this.verificationsService.handleCheckRefreshCode(+id);
     } catch (error) {
       throw new NotFoundException({
         message: 'TokenID đã hết hạn vui lòng đăng ký lại.!',
