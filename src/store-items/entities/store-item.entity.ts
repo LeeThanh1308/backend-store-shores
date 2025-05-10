@@ -20,7 +20,9 @@ export class StoreItem extends BaseModel {
   })
   store: Store;
 
-  @ManyToOne(() => Product, (product) => product.items)
+  @ManyToOne(() => Product, (product) => product.items, {
+    onDelete: 'CASCADE',
+  })
   product: Product;
 
   @ManyToOne(() => ProductColor, (productColor) => productColor.items, {
@@ -28,6 +30,8 @@ export class StoreItem extends BaseModel {
   })
   color: ProductColor;
 
-  @ManyToOne(() => ProductSize, (productSize) => productSize.items)
+  @ManyToOne(() => ProductSize, (productSize) => productSize.items, {
+    onDelete: 'CASCADE',
+  })
   size: ProductSize;
 }

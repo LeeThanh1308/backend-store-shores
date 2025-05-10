@@ -4,6 +4,7 @@ import { AccountsModule } from './accounts/accounts.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { BlogsModule } from './blogs/blogs.module';
 import { BranchesModule } from './branches/branches.module';
 import { CartsModule } from './carts/carts.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -16,6 +17,7 @@ import { LikesModule } from './likes/likes.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { Module } from '@nestjs/common';
 import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
 import { ProductBrandsModule } from './product-brands/product-brands.module';
 import { ProductColorsModule } from './product-colors/product-colors.module';
 import { ProductImagesModule } from './product-images/product-images.module';
@@ -23,13 +25,14 @@ import { ProductSizesModule } from './product-sizes/product-sizes.module';
 import { ProductsModule } from './products/products.module';
 import { RepliesModule } from './replies/replies.module';
 import { RolesModule } from './roles/roles.module';
+import { SlidersModule } from './sliders/sliders.module';
 import { StoreItemsModule } from './store-items/store-items.module';
 import { StoresModule } from './stores/stores.module';
 import { TargetGroupsModule } from './target-groups/target-groups.module';
+import { TempOrdersModule } from './temp-orders/temp-orders.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { VerificationsModule } from './verifications/verifications.module';
 import { join } from 'path';
-import { SlidersModule } from './sliders/sliders.module';
 
 @Module({
   imports: [
@@ -83,7 +86,6 @@ import { SlidersModule } from './sliders/sliders.module';
     CategoriesModule,
     BranchesModule,
     CommentsModule,
-    RepliesModule,
     LikesModule,
     StoresModule,
     TargetGroupsModule,
@@ -92,6 +94,10 @@ import { SlidersModule } from './sliders/sliders.module';
     CartsModule,
     OrdersModule,
     SlidersModule,
+    BlogsModule,
+    RepliesModule,
+    PaymentsModule,
+    TempOrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService, IsUniqueConstraint],

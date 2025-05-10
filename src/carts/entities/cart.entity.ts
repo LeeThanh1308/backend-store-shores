@@ -18,15 +18,21 @@ export class Cart {
   @Column()
   quantity: number;
 
-  @ManyToOne(() => Accounts, (accounts) => accounts.carts)
+  @ManyToOne(() => Accounts, (accounts) => accounts.carts, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn()
   account: Accounts;
 
-  @ManyToOne(() => ProductSize, (productSize) => productSize.carts)
+  @ManyToOne(() => ProductSize, (productSize) => productSize.carts, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn()
   size: ProductSize;
 
-  @ManyToOne(() => ProductColor, (color) => color.carts)
+  @ManyToOne(() => ProductColor, (color) => color.carts, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn()
   color: ProductColor;
 }

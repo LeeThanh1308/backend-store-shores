@@ -36,8 +36,22 @@ export class CartsController {
   }
 
   @Get()
-  findAll() {
-    return this.cartsService.findAll();
+  async findAll(
+    @Body()
+    body: {
+      productId: number;
+      colorId: number;
+      sizeId: number;
+      inputQuantity: number;
+    },
+  ) {
+    const { productId, colorId, sizeId, inputQuantity } = body;
+    return await this.cartsService.checkStockAvailability(
+      productId,
+      colorId,
+      sizeId,
+      inputQuantity,
+    );
   }
 
   @Get(':id')

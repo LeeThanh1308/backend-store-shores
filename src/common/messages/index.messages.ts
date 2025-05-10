@@ -16,7 +16,7 @@ export function generateMessage(
   switch (action) {
     case 'created':
       return {
-        message: `Tạo ${name} ${stateMessage}`,
+        message: `Thêm ${name} ${stateMessage}`,
         type: state,
       };
     case 'updated':

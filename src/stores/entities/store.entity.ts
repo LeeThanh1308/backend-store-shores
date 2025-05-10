@@ -13,9 +13,13 @@ export class Store extends BaseModel {
   })
   items: StoreItem[];
 
-  @ManyToOne(() => Accounts, (account) => account.stockIn)
+  @ManyToOne(() => Accounts, (account) => account.stockIn, {
+    onDelete: 'CASCADE',
+  })
   createdBy: Accounts;
 
-  @ManyToOne(() => Branch, (branch) => branch.stores)
+  @ManyToOne(() => Branch, (branch) => branch.stores, {
+    onDelete: 'CASCADE',
+  })
   branch: Branch;
 }

@@ -56,9 +56,9 @@ export class FilesService {
       }
 
       const uniqueSuffix = uuidv4() + '-' + Date.now();
-      const fileName = uniqueSuffix + extname(file.originalname);
+      const fileName = uniqueSuffix + extname(file?.originalname);
       const filePath = `${folderPath}/${fileName}`;
-      fs.writeFile(filePath, file.buffer, (err) => {
+      fs.writeFile(filePath, file?.buffer, (err) => {
         if (err) {
           reject(err);
         } else {

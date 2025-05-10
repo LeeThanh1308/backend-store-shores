@@ -4,6 +4,8 @@ import { Accounts } from './entities/account.entity';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -17,6 +19,9 @@ import { AuthService } from 'src/auth/auth.service';
 import { Roles } from 'src/roles/entities/role.entity';
 import { differenceInSeconds } from 'date-fns';
 import { Verifications } from 'src/verifications/entities/verification.entity';
+import { FilesService } from 'src/files/files.service';
+import { generateMessage } from 'src/common/messages/index.messages';
+import { UpdateMyAccountDto } from './dto/update-my-account.dto';
 
 @Injectable()
 export class AccountsService {
@@ -33,6 +38,7 @@ export class AccountsService {
     private verifySevice: VerificationsService,
     private readonly authService: AuthService,
     private readonly dataSource: DataSource,
+    private readonly filesService: FilesService,
   ) {
     this.TIME_VERIFY_SECOND = Number(process.env.TIME_VERIFY_SECOND);
   }
@@ -115,24 +121,35 @@ export class AccountsService {
   }
 
   async handleRefreshToken(RT: string) {
-    const checkToken = await this.authService.handleVerifyToken(RT);
-    if (!checkToken) {
-      throw new Error();
+    try {
+      if (!RT) {
+        throw new ForbiddenException();
+      }
+      const checkToken = await this.authService.handleVerifyToken(RT);
+      if (!checkToken) {
+        throw new ForbiddenException();
+      }
+      const refreshToken = await this.accountsRepository.findOne({
+        where: { id: checkToken.id, refresh_token: RT, ban: false },
+        select: ['id'],
+      });
+      if (!refreshToken) {
+        throw new ForbiddenException();
+      }
+      const date = new Date();
+      const exp = checkToken.exp - Math.floor(date.getTime() / 1000);
+      const newToken = await this.authService.createATRFToken(
+        checkToken.id,
+        exp,
+      );
+      await this.handleUpdateAccount(checkToken.id, {
+        refresh_token: newToken.RT,
+      });
+      return { exp, ...newToken };
+    } catch (error) {
+      console.log(error);
+      throw error;
     }
-    const refreshToken = await this.accountsRepository.findOne({
-      where: { id: checkToken.id, refresh_token: RT, ban: false },
-      select: ['id'],
-    });
-    if (!refreshToken) {
-      throw new Error();
-    }
-    const date = new Date();
-    const exp = checkToken.exp - Math.floor(date.getTime() / 1000);
-    const newToken = await this.authService.createATRFToken(checkToken.id, exp);
-    await this.handleUpdateAccount(checkToken.id, {
-      refresh_token: newToken.RT,
-    });
-    return { exp, ...newToken };
   }
 
   async handleCreateVerify(createAccountDto: CreateAccountDto) {
@@ -566,15 +583,34 @@ export class AccountsService {
 
   async handleUpdateThisInfoUser(
     id: string,
-    data: {
-      fullname?: string;
-      birthday?: string;
-      email?: string;
-      gender?: string;
-      avatar?: string;
-    },
+    updateAccounDto: UpdateMyAccountDto,
+    avatar?: Express.Multer.File,
   ) {
-    return await this.accountsRepository.update(id, data);
+    try {
+      const findAccountExist = await this.accountsRepository.findOne({
+        where: {
+          id,
+        },
+      });
+      delete updateAccounDto.avatar;
+      if (!findAccountExist) {
+        throw new NotFoundException();
+      }
+      if (avatar) {
+        const resultFile = await this.filesService.uploadFile(
+          avatar,
+          'avatars',
+        );
+        if (findAccountExist?.avatar) {
+          await this.filesService.deleteFile(findAccountExist?.avatar);
+        }
+        updateAccounDto.avatar = resultFile.filePath;
+      }
+      const results = await this.accountsRepository.update(id, updateAccounDto);
+      return generateMessage('accounts', 'updated', true);
+    } catch (error) {
+      throw error;
+    }
   }
 
   async handleChangePass(data: {
@@ -604,11 +640,11 @@ export class AccountsService {
         };
       }
     } else {
-      return {
-        field: {
-          password: 'Mật khẩu không chính xác!',
+      throw new ConflictException({
+        validators: {
+          prevPassword: 'Mật khẩu không chính xác!',
         },
-      };
+      });
     }
     // return await bcrypt.compare(data.prevPass, account.password);
     throw new Error();

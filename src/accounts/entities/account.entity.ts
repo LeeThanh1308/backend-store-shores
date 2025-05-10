@@ -12,10 +12,13 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { Blog } from 'src/blogs/entities/blog.entity';
 import { Cart } from 'src/carts/entities/cart.entity';
 import { Comment } from 'src/comments/entities/comment.entity';
 import { Like } from 'src/likes/entities/like.entity';
 import { Order } from 'src/orders/entities/order.entity';
+import { Payment } from 'src/payments/entities/payment.entity';
+import { Reply } from 'src/replies/entities/reply.entity';
 import { Roles } from 'src/roles/entities/role.entity';
 import { Store } from 'src/stores/entities/store.entity';
 
@@ -60,7 +63,9 @@ export class Accounts {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Roles, (roles) => roles.accounts)
+  @ManyToOne(() => Roles, (roles) => roles.accounts, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn()
   roles: Roles;
 
@@ -73,9 +78,21 @@ export class Accounts {
   @OneToMany(() => Comment, (comment) => comment.account)
   comments: Comment[];
 
+  @OneToMany(() => Reply, (reply) => reply.account)
+  replies: Reply[];
+
+  @OneToMany(() => Reply, (reply) => reply.accountReply)
+  accountReplys: Reply[];
+
   @OneToMany(() => Cart, (cart) => cart.account)
   carts: Cart[];
 
   @OneToMany(() => Order, (order) => order.account)
   orders: Order[];
+
+  @OneToMany(() => Blog, (blog) => blog.account)
+  blogs: Blog[];
+
+  @OneToOne(() => Payment, (payment) => payment.account)
+  payments: Payment[];
 }

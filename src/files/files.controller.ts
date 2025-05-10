@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   NotFoundException,
+  Param,
   Patch,
   Query,
   Res,
@@ -15,16 +16,20 @@ import * as path from 'path';
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
-  @Get('cdn')
-  getFile(@Query('name') name: string, @Res() res: Response) {
+  @Get('/:folder/:name')
+  getFile(
+    @Param('folder') folder: string,
+    @Param('name') name: string,
+    @Res() res: Response,
+  ) {
     try {
-      const filePath = path.resolve('./uploads', name);
+      const filePath = path.resolve('./uploads', folder, name);
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ message: 'File not found' });
       }
       return res.sendFile(filePath);
     } catch (error) {
-      return error;
+      throw error;
     }
   }
 

@@ -1,0 +1,31 @@
+{
+  "items": [
+    {
+      "id": 8,
+      "name": "Giày Thể Thao LV Trainer Maxi",
+      "slug": "giay-the-thao-lv-trainer-maxi",
+      "sellingPrice": "170000000",
+      "discount": 0,
+      "size": {
+        "id": 230,
+        "sellingPrice": "0",
+        "type": "45",
+        "discount": 0
+      },
+      "quantity": 1,
+      "color": {
+        "id": 6,
+        "createdAt": "2025-04-03T15:57:59.121Z",
+        "updatedAt": "2025-04-03T15:57:59.121Z",
+        "name": "Vàng",
+        "hexCode": "#FFFF00"
+      },
+      "sold": {
+        "sold": 14,
+        "inventory": 1329
+      },
+      "image": "products/d2854bae-40fa-43d5-a430-b7566a99c6ad-1744692535368.avif"
+    }
+  ],
+  "total": 176900000
+}

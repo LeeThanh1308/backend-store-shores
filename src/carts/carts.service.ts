@@ -15,6 +15,8 @@ import { generateMessage } from 'src/common/messages/index.messages';
 import { Product } from 'src/products/entities/product.entity';
 import { ProductImage } from 'src/product-images/entities/product-image.entity';
 import { Order } from 'src/orders/entities/order.entity';
+import { MyCartsResponse } from './types/my-carts-response.type';
+import { StoreItem } from 'src/store-items/entities/store-item.entity';
 
 @Injectable()
 export class CartsService {
@@ -22,6 +24,8 @@ export class CartsService {
   private sizesRepository: Repository<ProductSize>;
   private productsRepository: Repository<Product>;
   private imagesRepository: Repository<ProductImage>;
+  private storeItemRepository: Repository<StoreItem>;
+  private orderRepository: Repository<Order>;
   constructor(
     @InjectRepository(Cart)
     private readonly cartRepository: Repository<Cart>,
@@ -30,6 +34,8 @@ export class CartsService {
     this.sizesRepository = this.dataSource.getRepository(ProductSize);
     this.productsRepository = this.dataSource.getRepository(Product);
     this.imagesRepository = this.dataSource.getRepository(ProductImage);
+    this.storeItemRepository = this.dataSource.getRepository(StoreItem);
+    this.orderRepository = this.dataSource.getRepository(Order);
   }
 
   calculateTotal(cartItems: any) {
@@ -42,6 +48,7 @@ export class CartsService {
         const discount = size?.discount || 0;
         const dataItems = {
           ...product,
+          productId: product.id,
           size,
           discount: +size?.discount ? size?.discount : product?.discount,
           sellingPrice: +size?.sellingPrice
@@ -74,9 +81,57 @@ export class CartsService {
     );
   }
 
+  async handleFindTotalSold(
+    colorId: number,
+    sizeId: number,
+  ): Promise<{ sold: number; inventory: number; id: number | null }> {
+    const storeItem = await this.storeItemRepository.findOne({
+      where: {
+        color: { id: colorId },
+        size: { id: sizeId },
+      },
+      relations: ['product', 'color', 'size'],
+    });
+    if (!storeItem) {
+      return {
+        id: null,
+        sold: 0,
+        inventory: 0,
+      };
+    }
+    // 2. Tính tổng số lượng đã bán từ Order
+    const totalSold = await this.orderRepository
+      .createQueryBuilder('order')
+      .select('SUM(order.quantity)', 'sum')
+      .where('order.storeItemId = :storeItemId', { storeItemId: storeItem.id })
+      .getRawOne();
+
+    const soldQuantity = Number(totalSold.sum) || 0;
+
+    // 3. Tính tồn kho
+    const remainingStock = storeItem.quantity - soldQuantity;
+    return {
+      id: storeItem.id,
+      sold: soldQuantity,
+      inventory: remainingStock,
+    };
+  }
+  async checkStockAvailability(
+    productId: number,
+    colorId: number,
+    sizeId: number,
+    inputQuantity: number,
+  ): Promise<boolean> {
+    // 1. Tìm StoreItem
+    const { sold, inventory } = await this.handleFindTotalSold(colorId, sizeId);
+    // 4. So sánh với số lượng yêu cầu từ người dùng
+    return inventory >= inputQuantity;
+  }
+
   async create(createCartDto: CreateCartDto, user: Accounts) {
-    console.log(user);
+    // console.log(user);
     try {
+      console.log(createCartDto);
       const findProducts = await this.productsRepository.findOne({
         relations: {
           colors: true,
@@ -90,9 +145,20 @@ export class CartsService {
           },
         },
       });
-      if (!findProducts?.colors) {
+      if (!findProducts) {
         throw new NotFoundException({
           message: 'ID colors or sizes không hợp lệ.',
+        });
+      }
+      const { sold, inventory } = await this.handleFindTotalSold(
+        createCartDto.colorID,
+        createCartDto.sizeID,
+      );
+      if (inventory < createCartDto.quantity) {
+        throw new ConflictException({
+          validators: {
+            quantity: 'Số lượng không hợp lệ.',
+          },
         });
       }
       const findCartSizeExists = await this.cartRepository.findOne({
@@ -141,12 +207,12 @@ export class CartsService {
         };
       }
     } catch (error) {
-      console.log(error);
-      return error;
+      // console.log(error);
+      throw error;
     }
   }
 
-  async handleGetMyCarts(user: Accounts) {
+  async handleGetMyCarts(user: Partial<Accounts>): Promise<MyCartsResponse> {
     try {
       const findCart = await this.cartRepository.find({
         relations: {
@@ -216,7 +282,7 @@ export class CartsService {
           };
         }),
       );
-      console.log(result);
+      // console.log(result);
 
       return {
         ...resultCalc,
@@ -305,7 +371,7 @@ export class CartsService {
     }
   }
 
-  async handleClearsCarts(user: Accounts) {
+  async handleClearsCarts(user: Partial<Accounts>) {
     try {
       const findCarts = await this.cartRepository.find({
         where: {

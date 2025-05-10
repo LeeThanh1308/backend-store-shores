@@ -28,11 +28,6 @@ export class ProductSizesController {
     return await this.productSizesService.findAll();
   }
 
-  // @Get(':id')
-  // async findOne(@Param('id') id: string) {
-  //   return await this.productSizesService.findOne(+id);
-  // }
-
   @Get('products/:id')
   async findSizesAndProduct(
     @Query('search') search: string,

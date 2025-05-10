@@ -15,6 +15,7 @@ import { generateMessage } from 'src/common/messages/index.messages';
 import { FiltersProductDto, SortOrder } from './dto/filters-product.dto';
 import { Order } from 'src/orders/entities/order.entity';
 import { Branch } from 'src/branches/entities/branch.entity';
+import { CartsService } from 'src/carts/carts.service';
 
 @Injectable()
 export class ProductsService {
@@ -32,6 +33,7 @@ export class ProductsService {
     private readonly productRepository: Repository<Product>,
     private readonly filesService: FilesService,
     private readonly dataSource: DataSource,
+    private readonly cartsServices: CartsService,
   ) {
     this.categoryRepository = this.dataSource.getRepository(Category);
     this.brandRepository = this.dataSource.getRepository(ProductBrand);
@@ -186,8 +188,6 @@ export class ProductsService {
   }
 
   async findProductBySlug(slug: string) {
-    let whereOrders: any = {};
-    let storeIDs: any[] = [];
     let branchWhere: any = {};
     const findProducts = await this.productRepository.findOne({
       relations: {
@@ -231,75 +231,60 @@ export class ProductsService {
       },
     });
 
-    const findBranch = await Promise.all(
-      findProducts?.sizes.map(async (_) => {
-        const findBranch = await this.branchesRepository.find({
-          where: {
-            stores: {
-              items: {
-                size: {
-                  id: _?.id,
-                },
-              },
-            },
-          },
-        });
-        return {
-          ..._,
-          branches: findBranch,
-        };
-      }) ?? [],
-    );
-
     if (findProducts?.items) {
       branchWhere.items = findProducts?.items;
     }
 
-    const findColorsByImage = await this.colorsRepository.find({
-      relations: {
-        images: true,
-      },
-      where: {
-        images: findProducts?.images,
-      },
-    });
-    if (findProducts?.sizes) {
-      whereOrders.size = In(findProducts?.sizes.map((_) => _?.id));
-    }
-    const findOrders = await this.ordersRepositoty.find({
-      relations: {
-        size: true,
-      },
-      where: {
-        ...whereOrders,
-      },
-    });
-
-    const handleSumSoldItems = findBranch?.map((size) => {
-      const items = size.items.map((item) => {
-        const total = item.orders.reduce(
-          (acc, order) => (acc += order.quantity),
-          0,
+    const colors = await Promise.all(
+      findProducts?.colors?.map(async (_) => {
+        const findColorsByImage = await this.imagesRepository.find({
+          where: {
+            product: {
+              id: findProducts.id,
+            },
+            color: {
+              id: _?.id,
+            },
+          },
+        });
+        const sizes = await Promise.all(
+          findProducts?.sizes?.map(async (size) => {
+            const total = await this.cartsServices.handleFindTotalSold(
+              _.id,
+              size.id,
+            );
+            const findBranch = await this.branchesRepository.find({
+              where: {
+                stores: {
+                  items: {
+                    size: {
+                      id: size?.id,
+                    },
+                    color: {
+                      id: _?.id,
+                    },
+                  },
+                },
+              },
+            });
+            return {
+              ...total,
+              ...size,
+              branches: findBranch,
+            };
+          }),
         );
-        const { orders, quantity, store, ...args } = item;
         return {
-          quantity,
-          inventory: item.quantity - total,
-          sold: total,
-          store: store,
+          ..._,
+          sizes,
+          images: findColorsByImage,
         };
-      });
-      const { items: itemss, ...args } = size;
-      return {
-        ...args,
-        ...items?.[0],
-      };
-    });
+      }) ?? [],
+    );
 
     return {
       ...findProducts,
-      sizes: handleSumSoldItems,
-      colors: findColorsByImage,
+      colors: colors,
     };
   }
 

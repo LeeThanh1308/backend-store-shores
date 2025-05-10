@@ -80,7 +80,7 @@ export class AuthGuard implements CanActivate {
           request['user'] = {
             id,
             fullname,
-            avatar: avatar ? avatar : 'avatar.jpg',
+            avatar,
             avatarOrigin: avatar,
             gender,
             phone,

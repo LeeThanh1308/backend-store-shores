@@ -14,6 +14,7 @@ import {
 
 import { Accounts } from '../entities/account.entity';
 import { IsUnique } from 'src/common/validators/unique.validator';
+import { Type } from 'class-transformer';
 
 export class CreateAccountDto {
   @IsString()

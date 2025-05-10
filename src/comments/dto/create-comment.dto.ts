@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt } from 'class-validator';
+import { IsInt, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateCommentDto {
   @IsOptional()
@@ -6,11 +6,15 @@ export class CreateCommentDto {
   score?: number;
 
   @IsString()
+  @MinLength(1)
+  @IsOptional()
   content: string;
 
   @IsInt()
-  productId: number;
+  @IsOptional()
+  productID: number;
 
   @IsInt()
-  accountId: number;
+  @IsOptional()
+  blogID: number;
 }

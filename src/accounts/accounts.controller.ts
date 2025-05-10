@@ -31,6 +31,8 @@ import { UserRoles } from 'src/guards/roles.decorator';
 import { EnumRoles } from 'src/guards/user-role.enum';
 import { unlink } from 'fs';
 import { ForgetAccountDto } from './dto/forget-account.dto';
+import { UploadImageValidationPipe } from 'src/common/validators/upload-image.validator';
+import { UpdateMyAccountDto } from './dto/update-my-account.dto';
 
 @Controller('accounts')
 export class AccountsController {
@@ -77,8 +79,6 @@ export class AccountsController {
   async onRefreshToken(@Req() request: Request, @Res() res: Response) {
     try {
       const cookieHeader = await request.headers?.cookie;
-      console.log('Start');
-      console.log(cookieHeader);
       const refreshToken =
         cookieHeader
           ?.split(';')
@@ -103,6 +103,7 @@ export class AccountsController {
           exp: process.env.JWT_AT_EXP_SECOND,
         });
     } catch (e) {
+      console.log(e);
       throw e;
     }
   }
@@ -208,6 +209,7 @@ export class AccountsController {
     try {
       const { fullname, gender, phone, birthday, email, avatar, usid } =
         req.user;
+      console.log(avatar);
       return { fullname, gender, phone, birthday, email, avatar, usid };
     } catch (e) {
       throw new NotFoundException(e);
@@ -221,55 +223,15 @@ export class AccountsController {
   async onUpdateThisInfoUser(
     @Req() req,
     @Body()
-    updateAccountDto: {
-      fullname?: string;
-      birthday?: string;
-      email?: string;
-      gender?: string;
-    },
-    @UploadedFile()
-    avatar?: Express.Multer.File,
+    updateAccountDto: UpdateMyAccountDto,
+    @UploadedFile(new UploadImageValidationPipe()) avatar: Express.Multer.File,
   ) {
-    try {
-      const user = req.user;
-      if (avatar) {
-        if (
-          user.avatar &&
-          user.avatar !== `${process.env.DOMAIN}/accounts/profile/avatar.jpg`
-        ) {
-          unlink(`public/avatars/${user.avatarOrigin}`, async (err) => {
-            Logger.error(err);
-            const result = await this.accountsService.handleUpdateThisInfoUser(
-              user.id,
-              { ...updateAccountDto, avatar: avatar.filename },
-            );
-            if (!result?.affected) {
-              throw new Error();
-            }
-            return { message: 'Cập nhật thông tin tài khoản thành công!' };
-          });
-        }
-        const result = await this.accountsService.handleUpdateThisInfoUser(
-          user.id,
-          { ...updateAccountDto, avatar: avatar.filename },
-        );
-        if (!result?.affected) {
-          throw new Error();
-        }
-      }
-      const result = await this.accountsService.handleUpdateThisInfoUser(
-        user.id,
-        updateAccountDto,
-      );
-      if (!result?.affected) {
-        throw new Error();
-      }
-      return { message: 'Cập nhật thông tin tài khoản thành công!' };
-    } catch (error) {
-      throw new BadRequestException({
-        message: 'Cập nhật thông tin tài khoản thất bại!',
-      });
-    }
+    const user = req.user;
+    return await this.accountsService.handleUpdateThisInfoUser(
+      user.id,
+      updateAccountDto,
+      avatar,
+    );
   }
 
   @Get('users')
@@ -435,9 +397,7 @@ export class AccountsController {
         newPass,
       });
     } catch (e) {
-      throw new NotFoundException({
-        message: 'Có lỗi xảy ra xin vui lòng thử lại sau.',
-      });
+      throw e;
     }
   }
 
