@@ -13,6 +13,7 @@ import {
 } from 'typeorm';
 
 import { Blog } from 'src/blogs/entities/blog.entity';
+import { Branch } from 'src/branches/entities/branch.entity';
 import { Cart } from 'src/carts/entities/cart.entity';
 import { Comment } from 'src/comments/entities/comment.entity';
 import { Like } from 'src/likes/entities/like.entity';
@@ -67,7 +68,7 @@ export class Accounts {
     onDelete: 'CASCADE',
   })
   @JoinColumn()
-  roles: Roles;
+  roles: Roles | null;
 
   @OneToMany(() => Store, (store) => store.createdBy)
   stockIn: Store[];
@@ -87,12 +88,27 @@ export class Accounts {
   @OneToMany(() => Cart, (cart) => cart.account)
   carts: Cart[];
 
+  @OneToMany(() => Cart, (cart) => cart.cashier)
+  cashierCarts: Cart[];
+
   @OneToMany(() => Order, (order) => order.account)
   orders: Order[];
+
+  @OneToMany(() => Order, (order) => order.staff)
+  orderStaffs: Order[];
 
   @OneToMany(() => Blog, (blog) => blog.account)
   blogs: Blog[];
 
-  @OneToOne(() => Payment, (payment) => payment.account)
+  @OneToMany(() => Payment, (payment) => payment.account)
   payments: Payment[];
+
+  @OneToMany(() => Payment, (payment) => payment.staff)
+  staffPayments: Payment[];
+
+  @ManyToOne(() => Branch, (branch) => branch.staffs)
+  staff: Branch | null;
+
+  @OneToOne(() => Branch, (branch) => branch.manage)
+  manage: Branch | null;
 }

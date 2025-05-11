@@ -24,9 +24,13 @@ import { Accounts } from 'src/accounts/entities/account.entity';
 import { RequestWithUser } from 'src/common/types/request-with-user';
 import { UserRoles } from 'src/guards/roles.decorator';
 import { EnumRoles } from 'src/guards/user-role.enum';
+import { PaymentsGateway } from './payments.gateway';
+import { OrderPaymentStatus } from './types/enum/status-payment.enum';
+import { CreatePaymentCashierDto } from './dto/create-payment.cashier';
 @Controller('payment')
 export class PaymentsController {
   constructor(
+    private readonly paymentsGateway: PaymentsGateway,
     private readonly paymentService: PaymentsService,
     private readonly cartService: CartsService,
   ) {}
@@ -43,11 +47,28 @@ export class PaymentsController {
       req?.connection?.remoteAddress ||
       req?.socket?.remoteAddress ||
       req?.connection?.socket?.remoteAddress;
-    return await this.paymentService.handleCreateDataPayment(
+    const data = await this.paymentService.handleCreateDataPayment(
       user.id,
       createPaymentDto,
       ipAddr,
     );
+    this.paymentsGateway.server.emit('onCreatePayment', data);
+    return data;
+  }
+
+  @Post('cashier')
+  @UseGuards(AuthGuard)
+  async onCreatedDataPaymentCashier(
+    @Req() req: RequestWithUser | any,
+    @Body() createPaymentDto: CreatePaymentCashierDto,
+  ) {
+    const user = req.user;
+    const data = await this.paymentService.handleCreatedDataPaymentCashier(
+      user.id,
+      createPaymentDto,
+    );
+    this.paymentsGateway.server.emit('onCreatePayment', data);
+    return data;
   }
 
   @Get('vnpay_return')
@@ -69,6 +90,11 @@ export class PaymentsController {
     }
   }
 
+  @Get('product-status')
+  async onGetProductStatus() {
+    return OrderPaymentStatus;
+  }
+
   @Get('orders')
   @UseGuards(AuthGuard)
   async onGetMyOrders(@Req() req: RequestWithUser) {
@@ -79,8 +105,8 @@ export class PaymentsController {
   @Get('admin/orders')
   @UseGuards(AuthGuard)
   @UserRoles([EnumRoles.CEO, EnumRoles.MANAGER, EnumRoles.STAFF])
-  async onGetOrdersAdmin() {
-    return await this.paymentService.handleGetOrdersAdmin();
+  async onGetOrdersAdmin(@Query('filter') filter: string) {
+    return await this.paymentService.handleGetOrdersAdmin(filter);
   }
   @Patch('admin/orders')
   @UseGuards(AuthGuard)

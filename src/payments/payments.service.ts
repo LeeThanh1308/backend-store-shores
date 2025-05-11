@@ -28,6 +28,7 @@ import {
 import { Accounts } from 'src/accounts/entities/account.entity';
 import { generateMessage } from 'src/common/messages/index.messages';
 import moment from 'moment';
+import { Branch } from 'src/branches/entities/branch.entity';
 
 @Injectable()
 export class PaymentsService {
@@ -112,6 +113,11 @@ export class PaymentsService {
       const carts: MyCartsResponse = await this.cartService.handleGetMyCarts({
         id: userID,
       });
+      if (!carts?.items?.length) {
+        throw new BadRequestException({
+          messages: 'Giỏ hàng đang trống',
+        });
+      }
       const createPayment = this.paymentsRepository.create({
         ...createPaymentDto,
         paymentMethod:
@@ -188,8 +194,99 @@ export class PaymentsService {
             id: userID,
           },
         });
-        await this.cartService.handleClearsCarts({ id: userID });
+        // await this.cartService.handleClearsCarts({ id: userID });
+        await queryRunner.commitTransaction();
         return data;
+      }
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async handleCreatedDataPaymentCashier(
+    userID: string,
+    createPaymentDto: CreatePaymentDto,
+  ) {
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const carts: MyCartsResponse =
+        await this.cartService.handleGetCashiersCarts({
+          id: userID,
+        });
+      if (!carts?.items?.length) {
+        throw new BadRequestException({
+          messages: 'Giỏ hàng đang trống',
+        });
+      }
+      const createPayment = this.paymentsRepository.create({
+        ...createPaymentDto,
+        paymentMethod:
+          createPaymentDto.paymentMethod == 'transfer'
+            ? OrderPaymentMethod.TRANSFER
+            : OrderPaymentMethod.CASH,
+      });
+      const tempOrders: TempOrder[] = await Promise.all(
+        carts?.items?.map(async (_) => {
+          const {
+            id: storeId,
+            sold,
+            inventory,
+          } = await this.cartService.handleFindTotalSold(_.color.id, _.size.id);
+          if (!storeId || _?.quantity > inventory) {
+            throw new ConflictException();
+          }
+          return this.tempOrderRepository.create({
+            name: _.name,
+            staff: {
+              id: userID,
+            },
+            quantity: _?.quantity,
+            totalAmount:
+              _?.sellingPrice * (1 - _?.discount / 100) * _?.quantity,
+            size: {
+              id: _.size.id,
+            },
+            product: {
+              id: _?.productId,
+            },
+            color: { id: _?.color.id },
+            storeItem: { id: storeId },
+          });
+        }),
+      );
+      if (createPaymentDto.paymentMethod == 'transfer') {
+        // await this.cartService.handleClearsCarts({ id: userID });
+      } else if (createPaymentDto.paymentMethod == 'cash') {
+        const data = await queryRunner.manager.save(Payment, {
+          ...createPayment,
+          price: carts.total,
+          tempOrders,
+          paymentMethod: OrderPaymentMethod.CASH,
+          paymentStatus: OrderPaymentStatus.DELIVERED,
+          staff: {
+            id: userID,
+          },
+        });
+        const removeId = await Promise.all(
+          data.tempOrders.map((_) => {
+            const { id, ...props } = _;
+            return props;
+          }),
+        );
+        const createOrders = this.orderRepository.create(removeId);
+        await queryRunner.manager.save(Order, createOrders);
+        await this.cartService.handleClearsCarts({ id: userID });
+        await queryRunner.commitTransaction();
+        return {
+          ...generateMessage('Đơn hàng', 'updated', true),
+          data,
+        };
       }
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -240,7 +337,15 @@ export class PaymentsService {
     });
   }
 
-  async handleGetOrdersAdmin() {
+  async handleGetOrdersAdmin(filter: string) {
+    const whereConditions: any = {};
+    const orderBy: any = {
+      createdAt: 'DESC',
+    };
+    if (filter == 'orders') {
+      whereConditions.paymentStatus = OrderPaymentStatus.PROCESSING;
+      orderBy.createdAt = 'ASC';
+    }
     return await this.paymentsRepository.find({
       relations: {
         tempOrders: {
@@ -249,9 +354,7 @@ export class PaymentsService {
           color: true,
         },
       },
-      where: {
-        paymentStatus: OrderPaymentStatus.PROCESSING,
-      },
+      where: whereConditions,
       select: {
         id: true,
         paymentMethod: true,
@@ -261,6 +364,7 @@ export class PaymentsService {
         phone: true,
         address: true,
         note: true,
+        createdAt: true,
         tempOrders: {
           name: true,
           quantity: true,
@@ -276,9 +380,7 @@ export class PaymentsService {
           },
         },
       },
-      order: {
-        createdAt: 'ASC',
-      },
+      order: orderBy,
     });
   }
 
@@ -323,6 +425,7 @@ export class PaymentsService {
             color: true,
             account: true,
             storeItem: true,
+            payment: true,
           },
         },
         where: {
@@ -363,11 +466,11 @@ export class PaymentsService {
         throw new NotFoundException();
       }
       const { tempOrders, ...props } = findPaymentOrders;
+      const updated = await queryRunner.manager.save(Payment, {
+        ...props,
+        paymentStatus: OrderPaymentStatus?.[updatePaymentDto.paymentStatus],
+      });
       if (updatePaymentDto.paymentStatus == 'DELIVERED') {
-        const updated = await queryRunner.manager.save(Payment, {
-          ...props,
-          paymentStatus: OrderPaymentStatus.DELIVERED,
-        });
         const removeId = await Promise.all(
           tempOrders.map((_) => {
             const { id, ...props } = _;
@@ -376,13 +479,27 @@ export class PaymentsService {
         );
         const createOrders = this.orderRepository.create(removeId);
         const data = await queryRunner.manager.save(Order, createOrders);
+        await queryRunner.commitTransaction();
         return {
           ...generateMessage('Đơn hàng', 'updated', true),
           data,
           updated,
         };
+      } else {
+        const findOrderRollback = await this.orderRepository.find({
+          where: {
+            payment: {
+              id: findPaymentOrders.id,
+            },
+          },
+        });
+        await queryRunner.manager.remove(Order, findOrderRollback);
+        await queryRunner.commitTransaction();
+        return {
+          ...generateMessage('Đơn hàng', 'updated', true),
+          updated,
+        };
       }
-      await queryRunner.commitTransaction();
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;

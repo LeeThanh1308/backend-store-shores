@@ -25,8 +25,13 @@ export class OrdersController {
   async onGetRevenues(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('branchID') branchID: string,
   ) {
-    return await this.ordersService.handleGetRevenues(+startDate, +endDate);
+    return await this.ordersService.handleGetRevenues(
+      +startDate,
+      +endDate,
+      +branchID,
+    );
   }
 
   @Get('trendings')

@@ -326,13 +326,14 @@ export class AccountsController {
   ) {
     try {
       const user = request.user;
-      const { fullname, birthday, phone, email, gender, id } = updateAccountDto;
+      const { fullname, birthday, phone, email, gender, id, password } =
+        updateAccountDto;
       if (!id) {
         throw new Error();
       }
       return await this.accountsService.handleUpdateInfoUser(
         id,
-        { fullname, birthday, phone, email, gender },
+        { fullname, birthday, phone, email, gender, password },
         user.roles.rating,
       );
     } catch (e) {

@@ -1,15 +1,44 @@
-import { WebSocketGateway, SubscribeMessage, MessageBody } from '@nestjs/websockets';
+import {
+  WebSocketGateway,
+  SubscribeMessage,
+  MessageBody,
+  ConnectedSocket,
+  WebSocketServer,
+} from '@nestjs/websockets';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
+import { UseGuards } from '@nestjs/common';
+import { AuthSocketGuard } from 'src/guards/authSocket.guard';
+import { Server } from 'socket.io';
 
 @WebSocketGateway()
 export class PaymentsGateway {
+  @WebSocketServer()
+  server: Server;
+
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  @SubscribeMessage('createPayment')
-  create(@MessageBody() createPaymentDto: CreatePaymentDto) {
+  @SubscribeMessage('handleCreatePayment')
+  @UseGuards(AuthSocketGuard)
+  create(
+    @MessageBody() createPaymentDto: CreatePaymentDto,
+    @ConnectedSocket() client: any,
+  ) {
+    console.log('true');
+    this.server.emit('onCreatePayment', createPaymentDto);
+    return createPaymentDto;
     return this.paymentsService.create(createPaymentDto);
+  }
+
+  @SubscribeMessage('joinBranchRoom')
+  @UseGuards(AuthSocketGuard)
+  onJoinBranch(
+    @MessageBody() data: { id: number },
+    @ConnectedSocket() client: any,
+  ) {
+    client.join(`branch-${data.id}`);
+    client.emit('joinedRoom', { room: `branch-${data.id}` });
   }
 
   @SubscribeMessage('findAllPayments')

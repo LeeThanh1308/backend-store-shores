@@ -11,6 +11,8 @@ import {
   UploadedFiles,
   NotFoundException,
   ConflictException,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -20,6 +22,8 @@ import { UploadImagesRequiredValidationPipe } from 'src/common/validators/upload
 import { UploadImageValidationPipe } from 'src/common/validators/upload-image.validator';
 import { UploadImagesValidationPipe } from 'src/common/validators/upload-images.validator';
 import { FiltersProductDto } from './dto/filters-product.dto';
+import { AuthGuard } from 'src/guards/auth.guard';
+import { RequestWithUser } from 'src/common/types/request-with-user';
 
 @Controller('products')
 export class ProductsController {
@@ -56,6 +60,19 @@ export class ProductsController {
   @Post('search')
   async searchFilter(@Body() filtersProductDto: FiltersProductDto) {
     return await this.productsService.searchFilter(filtersProductDto);
+  }
+
+  @Get('cashiers')
+  @UseGuards(AuthGuard)
+  async onSearchProductByCashiers(
+    @Req() req: RequestWithUser,
+    @Query('search') search: string,
+  ) {
+    const user = req.user;
+    return await this.productsService.handleSearchProductByCashiers(
+      search,
+      user,
+    );
   }
 
   // @Get(':id')

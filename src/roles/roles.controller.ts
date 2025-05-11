@@ -1,7 +1,21 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
+import { AuthGuard } from 'src/guards/auth.guard';
+import { UserRoles } from 'src/guards/roles.decorator';
+import { EnumRoles } from 'src/guards/user-role.enum';
+import { RequestWithUser } from 'src/common/types/request-with-user';
 
 @Controller('roles')
 export class RolesController {
@@ -10,6 +24,14 @@ export class RolesController {
   @Post()
   create(@Body() createRoleDto: CreateRoleDto) {
     return this.rolesService.create(createRoleDto);
+  }
+
+  @Get('my-role-set')
+  @UseGuards(AuthGuard)
+  @UserRoles([EnumRoles.CEO, EnumRoles.MANAGER])
+  onGetMyRoleSet(@Req() req: RequestWithUser) {
+    const user = req.user;
+    return this.rolesService.handleGetMyRoleSet(user);
   }
 
   @Get()

@@ -1,7 +1,8 @@
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, OneToOne } from 'typeorm';
 
 import { Accounts } from 'src/accounts/entities/account.entity';
 import { BaseModel } from 'src/common/entities/BaseEntity';
+import { Payment } from 'src/payments/entities/payment.entity';
 import { Product } from 'src/products/entities/product.entity';
 import { ProductColor } from 'src/product-colors/entities/product-color.entity';
 import { ProductSize } from 'src/product-sizes/entities/product-size.entity';
@@ -18,11 +19,17 @@ export class Order extends BaseModel {
   @Column({ type: 'decimal', precision: 18, nullable: false })
   totalAmount: number;
 
-  @ManyToOne(() => Accounts, (accounts) => accounts.carts, {
+  @ManyToOne(() => Accounts, (accounts) => accounts.orders, {
     onDelete: 'CASCADE',
   })
   @JoinColumn()
   account: Accounts;
+
+  @ManyToOne(() => Accounts, (accounts) => accounts.orderStaffs, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn()
+  staff: Accounts;
 
   @ManyToOne(() => StoreItem, (storeItem) => storeItem.orders, {
     onDelete: 'CASCADE',
@@ -45,4 +52,9 @@ export class Order extends BaseModel {
   })
   @JoinColumn()
   product: Product;
+
+  @ManyToOne(() => Payment, (payment) => payment.orders, {
+    onDelete: 'CASCADE',
+  })
+  payment: Payment;
 }

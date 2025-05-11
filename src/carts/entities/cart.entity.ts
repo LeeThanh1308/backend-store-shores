@@ -35,4 +35,9 @@ export class Cart {
   })
   @JoinColumn()
   color: ProductColor;
+
+  @ManyToOne(() => Accounts, (accounts) => accounts.cashierCarts, {
+    onDelete: 'CASCADE',
+  })
+  cashier: Accounts;
 }

@@ -84,11 +84,21 @@ export class CartsService {
   async handleFindTotalSold(
     colorId: number,
     sizeId: number,
+    branchId?: number | null,
   ): Promise<{ sold: number; inventory: number; id: number | null }> {
+    const whereConditions: any = {};
+    if (Number(branchId)) {
+      whereConditions.store = {
+        branch: {
+          id: branchId,
+        },
+      };
+    }
     const storeItem = await this.storeItemRepository.findOne({
       where: {
         color: { id: colorId },
         size: { id: sizeId },
+        ...whereConditions,
       },
       relations: ['product', 'color', 'size'],
     });
@@ -100,12 +110,17 @@ export class CartsService {
       };
     }
     // 2. Tính tổng số lượng đã bán từ Order
-    const totalSold = await this.orderRepository
+    const queryOrder = await this.orderRepository
       .createQueryBuilder('order')
-      .select('SUM(order.quantity)', 'sum')
+      .leftJoin('order.storeItem', 'item')
+      .leftJoin('item.store', 'store')
+      .leftJoin('store.branch', 'branch')
       .where('order.storeItemId = :storeItemId', { storeItemId: storeItem.id })
-      .getRawOne();
-
+      .select('SUM(order.quantity)', 'sum');
+    if (Number(branchId)) {
+      queryOrder.andWhere('branch.id = :id', { id: branchId });
+    }
+    const totalSold = await queryOrder.getRawOne();
     const soldQuantity = Number(totalSold.sum) || 0;
 
     // 3. Tính tồn kho
@@ -212,6 +227,172 @@ export class CartsService {
     }
   }
 
+  async handleCreateCashiersCarts(
+    createCartDto: CreateCartDto,
+    user: Accounts,
+  ) {
+    try {
+      const findProducts = await this.productsRepository.findOne({
+        relations: {
+          colors: true,
+        },
+        where: {
+          sizes: {
+            id: createCartDto.sizeID,
+          },
+          colors: {
+            id: createCartDto.colorID,
+          },
+        },
+      });
+      if (!findProducts) {
+        throw new NotFoundException({
+          message: 'ID colors or sizes không hợp lệ.',
+        });
+      }
+      const { sold, inventory } = await this.handleFindTotalSold(
+        createCartDto.colorID,
+        createCartDto.sizeID,
+      );
+      if (inventory < createCartDto.quantity) {
+        throw new ConflictException({
+          validators: {
+            quantity: 'Số lượng không hợp lệ.',
+          },
+        });
+      }
+      const findCartSizeExists = await this.cartRepository.findOne({
+        relations: {
+          color: true,
+          size: true,
+        },
+        where: {
+          size: {
+            id: createCartDto.sizeID,
+          },
+          color: {
+            id: createCartDto.colorID,
+          },
+          cashier: {
+            id: user.id,
+          },
+        },
+      });
+
+      if (findCartSizeExists) {
+        const createCart = this.cartRepository.create({
+          ...findCartSizeExists,
+          quantity: findCartSizeExists.quantity + createCartDto.quantity,
+        });
+        await this.cartRepository.save(createCart);
+        return {
+          ...generateMessage(this.nameMessage, 'updated', true),
+        };
+      } else {
+        const createCart = this.cartRepository.create({
+          ...createCartDto,
+          size: {
+            id: createCartDto.sizeID,
+          },
+          color: {
+            id: createCartDto.colorID,
+          },
+          cashier: {
+            id: user.id,
+          },
+        });
+        await this.cartRepository.save(createCart);
+        return {
+          ...generateMessage(this.nameMessage, 'created', true),
+        };
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async handleGetCashiersCarts(
+    user: Partial<Accounts>,
+  ): Promise<MyCartsResponse> {
+    try {
+      const findCart = await this.cartRepository.find({
+        relations: {
+          size: {
+            product: true,
+            items: {
+              orders: true,
+            },
+          },
+          color: true,
+        },
+        where: {
+          cashier: {
+            id: user.id,
+          },
+        },
+        select: {
+          size: {
+            id: true,
+            type: true,
+            sellingPrice: true,
+            discount: true,
+            product: {
+              id: true,
+              name: true,
+              slug: true,
+              sellingPrice: true,
+              discount: true,
+            },
+            items: {
+              id: true,
+              quantity: true,
+              orders: {
+                quantity: true,
+              },
+            },
+          },
+        },
+      });
+
+      const resultCalc = await this.calculateTotal(findCart);
+      const result = await Promise.all(
+        resultCalc?.items?.map(async (item: Cart) => {
+          const { items, ...size } = item?.size;
+          const sold = items.reduce(
+            (acc, _) => {
+              _?.orders?.map((order) => {
+                acc.sold += +order?.quantity;
+              });
+              acc.inventory += +_?.quantity - +acc?.sold;
+              return acc;
+            },
+            { sold: 0, inventory: 0 },
+          );
+          const findImage = await this.imagesRepository.findOne({
+            where: {
+              color: {
+                id: item?.color?.id,
+              },
+            },
+          });
+          return {
+            ...item,
+            size,
+            sold,
+            image: findImage?.src,
+          };
+        }),
+      );
+
+      return {
+        ...resultCalc,
+        items: result,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async handleGetMyCarts(user: Partial<Accounts>): Promise<MyCartsResponse> {
     try {
       const findCart = await this.cartRepository.find({
@@ -289,7 +470,7 @@ export class CartsService {
         items: result,
       };
     } catch (error) {
-      return error;
+      throw error;
     }
   }
 
@@ -313,12 +494,20 @@ export class CartsService {
         throw new ConflictException({ id: 'ID không được để trống' });
       }
       const findCarts = await this.cartRepository.findOne({
-        where: {
-          id,
-          account: {
-            id: user.id,
+        where: [
+          {
+            id,
+            account: {
+              id: user.id,
+            },
           },
-        },
+          {
+            id,
+            cashier: {
+              id: user.id,
+            },
+          },
+        ],
       });
       if (!findCarts) {
         throw new NotFoundException();
@@ -338,12 +527,20 @@ export class CartsService {
   }
   async removeOne(id: number, user: Accounts) {
     const findCart = await this.cartRepository.findOne({
-      where: {
-        id,
-        account: {
-          id: user.id,
+      where: [
+        {
+          id,
+          account: {
+            id: user.id,
+          },
         },
-      },
+        {
+          id,
+          cashier: {
+            id: user.id,
+          },
+        },
+      ],
       select: ['id'],
     });
     if (!findCart?.id) {
@@ -357,11 +554,21 @@ export class CartsService {
 
   async removeMany(ids: number[], user: Accounts) {
     try {
-      const findCart = await this.cartRepository.findBy({
-        id: In(ids),
-        account: {
-          id: user.id,
-        },
+      const findCart = await this.cartRepository.find({
+        where: [
+          {
+            id: In(ids),
+            account: {
+              id: user.id,
+            },
+          },
+          {
+            id: In(ids),
+            cashier: {
+              id: user.id,
+            },
+          },
+        ],
       });
       if (!findCart.length) return;
       const result = await this.cartRepository.delete(ids);
@@ -374,11 +581,18 @@ export class CartsService {
   async handleClearsCarts(user: Partial<Accounts>) {
     try {
       const findCarts = await this.cartRepository.find({
-        where: {
-          account: {
-            id: user.id,
+        where: [
+          {
+            account: {
+              id: user.id,
+            },
           },
-        },
+          {
+            cashier: {
+              id: user.id,
+            },
+          },
+        ],
       });
       const statusRemove = await this.cartRepository.remove(findCarts);
       return generateMessage(this.nameMessage, 'deleted', !!statusRemove);

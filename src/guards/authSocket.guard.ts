@@ -14,9 +14,10 @@ import { JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { UserRoles } from './roles.decorator';
+import { WsException } from '@nestjs/websockets';
 
 @Injectable()
-export class AuthGuard implements CanActivate {
+export class AuthSocketGuard implements CanActivate {
   private readonly accountsRepository: Repository<Accounts>;
   constructor(
     private readonly dataSource: DataSource,
@@ -28,12 +29,15 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const roleApi = this.reflector.get(UserRoles, context.getHandler());
-    const request = context.switchToHttp().getRequest();
-    const token = this.extractTokenFromHeader(request);
+
+    const client = context.switchToWs().getClient(); // lấy socket client
+    const token = this.extractTokenFromSocket(client); // sửa lại hàm lấy token
+
     try {
       const accessToken = await this.jwtService.verifyAsync(token ?? '', {
         secret: process.env.JWT_SECRET,
       });
+
       const account = await this.accountsRepository.findOne({
         relations: { roles: true },
         where: {
@@ -54,13 +58,19 @@ export class AuthGuard implements CanActivate {
           roles: { role: true, description: true, rating: true },
         },
       });
+
       if (!account) {
-        throw new ForbiddenException();
+        throw new WsException({
+          status: 403,
+          message: 'You do not have access.',
+        });
       }
+
       const refreshToken = await this.jwtService.verifyAsync(
         account?.refresh_token ?? '',
         { secret: process.env.JWT_SECRET },
       );
+
       if (
         accessToken.id === refreshToken.id &&
         accessToken.udid === refreshToken.udid
@@ -76,8 +86,9 @@ export class AuthGuard implements CanActivate {
           email,
           usid,
         } = account;
+
         if (!roleApi || roleApi.includes(roles?.role!)) {
-          request['user'] = {
+          client.user = {
             id,
             fullname,
             avatar,
@@ -93,22 +104,25 @@ export class AuthGuard implements CanActivate {
           };
           return true;
         } else {
-          throw new ForbiddenException();
+          throw new WsException({
+            status: 403,
+            message: 'You do not have access.',
+          });
         }
       }
 
-      throw new ForbiddenException();
+      throw new WsException({
+        status: 403,
+        message: 'You do not have access.',
+      });
     } catch (e) {
-      throw new HttpException(
-        (e?.errMgs ? e.errMgs : 'Có lỗi sảy ra xin vui lòng thử lại sau.') ||
-          new UnauthorizedException(),
-        e.status || 401,
-      );
+      throw e;
     }
   }
 
-  private extractTokenFromHeader(request: Request): string | undefined {
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
+  private extractTokenFromSocket(client: any): string | undefined {
+    const auth = client.handshake?.auth;
+    const [type, token] = (auth?.token ?? '').split(' ');
     return type === 'Bearer' ? token : undefined;
   }
 }

@@ -24,45 +24,38 @@ export class OrdersService {
     return date.toISOString(); // Trả ra dạng string chuẩn ISO
   }
 
-  async handleGetRevenues(startDate: number, endDate: number) {
+  async handleGetRevenues(
+    startDate: number,
+    endDate: number,
+    branchID: number,
+  ) {
     try {
-      const nowDate = new Date(startDate);
-      const newDate = new Date(endDate);
-      const result =
-        startDate && endDate
-          ? await this.orderRepository
-              .createQueryBuilder('order')
-              .where('order.createdAt BETWEEN :start AND :end', {
-                start: nowDate,
-                end: newDate,
-              })
-              .leftJoin('order.product', 'product')
-              .leftJoin('order.size', 'size')
-              .select('DATE(order.createdAt)', 'date') // chỉ lấy ngày, bỏ giờ
-              .addSelect(
-                `SUM(CASE WHEN size.costPrice = 0 THEN product.costPrice ELSE size.costPrice END * order.quantity)`,
-                'totalCost',
-              )
-              .addSelect('SUM(order.totalAmount)', 'totalAmount')
-              .addSelect('SUM(order.quantity)', 'totalQuantity')
-              .groupBy('DATE(order.createdAt)')
-              .orderBy('date', 'ASC')
-              .getRawMany()
-          : await this.orderRepository
-              .createQueryBuilder('order')
-              .leftJoin('order.product', 'product')
-              .leftJoin('order.size', 'size')
-              .select('DATE(order.createdAt)', 'date') // chỉ lấy ngày, bỏ giờ
-              .addSelect(
-                `SUM(CASE WHEN size.costPrice = 0 THEN product.costPrice ELSE size.costPrice END * order.quantity)`,
-                'totalCost',
-              )
-              .addSelect('SUM(order.totalAmount)', 'totalAmount')
-              .addSelect('SUM(order.quantity)', 'totalQuantity')
-              .groupBy('DATE(order.createdAt)')
-              .orderBy('date', 'ASC')
-              .getRawMany();
-
+      const query = this.orderRepository
+        .createQueryBuilder('order')
+        .leftJoin('order.product', 'product')
+        .leftJoin('order.size', 'size')
+        .leftJoin('order.storeItem', 'item')
+        .leftJoin('item.store', 'store')
+        .leftJoin('store.branch', 'branch')
+        .select('DATE(order.createdAt)', 'date')
+        .addSelect(
+          `SUM(CASE WHEN size.costPrice = 0 THEN product.costPrice ELSE size.costPrice END * order.quantity)`,
+          'totalCost',
+        )
+        .addSelect('SUM(order.totalAmount)', 'totalAmount')
+        .addSelect('SUM(order.quantity)', 'totalQuantity')
+        .groupBy('DATE(order.createdAt)')
+        .orderBy('date', 'ASC');
+      if (startDate && endDate) {
+        query.andWhere('order.createdAt BETWEEN :start AND :end', {
+          start: new Date(startDate),
+          end: new Date(endDate),
+        });
+      }
+      if (branchID) {
+        query.andWhere('branch.id = :branchId', { branchId: branchID });
+      }
+      const result = await query.getRawMany();
       const costPrices = await Promise.all(
         result.map((item) => {
           const date = new Date(item.date);

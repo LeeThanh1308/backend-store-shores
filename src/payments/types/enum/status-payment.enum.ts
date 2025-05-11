@@ -6,10 +6,11 @@ export type OrderPaymentStatusKey =
   | 'CANCELLED';
 export enum OrderPaymentStatus {
   PENDING = 'Chờ thanh toán',
-  PROCESSING = 'Đang xử lý',
+  PROCESSING = 'Chờ đóng gói',
   SHIPPING = 'Đang giao hàng',
   DELIVERED = 'Giao hàng thành công',
   CANCELLED = 'Đã huỷ',
+  OUT_OF_STOCK = 'Hết hàng',
 }
 
 export enum OrderPaymentMethod {

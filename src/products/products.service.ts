@@ -1,4 +1,9 @@
-import { ConflictException, HttpException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  Injectable,
+} from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,6 +21,7 @@ import { FiltersProductDto, SortOrder } from './dto/filters-product.dto';
 import { Order } from 'src/orders/entities/order.entity';
 import { Branch } from 'src/branches/entities/branch.entity';
 import { CartsService } from 'src/carts/carts.service';
+import { Accounts } from 'src/accounts/entities/account.entity';
 
 @Injectable()
 export class ProductsService {
@@ -26,6 +32,7 @@ export class ProductsService {
   private colorsRepository: Repository<ProductColor>;
   private imagesRepository: Repository<ProductImage>;
   private ordersRepositoty: Repository<Order>;
+  private accountRepository: Repository<Accounts>;
   private readonly folderPath = 'products';
   private readonly messageName = 'Products';
   constructor(
@@ -42,6 +49,7 @@ export class ProductsService {
     this.imagesRepository = this.dataSource.getRepository(ProductImage);
     this.ordersRepositoty = this.dataSource.getRepository(Order);
     this.branchesRepository = this.dataSource.getRepository(Branch);
+    this.accountRepository = this.dataSource.getRepository(Accounts);
   }
   async create(
     createProductDto: CreateProductDto,
@@ -753,6 +761,138 @@ export class ProductsService {
         };
       }),
     );
+  }
+
+  async handleSearchProductByCashiers(
+    keyword: string,
+    user: Partial<Accounts>,
+  ) {
+    const whereConditions: any = {
+      isActive: true,
+      sizes: { isActive: true },
+    };
+    const findAccount = await this.accountRepository.findOne({
+      relations: {
+        manage: true,
+        staff: true,
+      },
+      where: {
+        id: user.id,
+      },
+    });
+    if (!findAccount?.manage?.id && !findAccount?.staff?.id) {
+      throw new ForbiddenException();
+    }
+    const keywordToLike = Like(convertTextToLike(keyword ?? ''));
+    const findProducts = await this.productRepository.find({
+      relations: {
+        brand: true,
+        sizes: true,
+        colors: true,
+      },
+      where: [
+        { ...whereConditions, name: keywordToLike }, // Tìm theo tên
+        { ...whereConditions, slug: Like(convertTextToLikeVi(keyword)) }, // Tìm theo slug
+        { ...whereConditions, barcode: keywordToLike }, // Tìm theo barcode
+        { ...whereConditions, id: Number(keyword) ? Number(keyword) : 0 }, // Tìm theo id
+      ],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        barcode: true,
+        sellingPrice: true,
+        discount: true,
+        sizes: {
+          id: true,
+          sellingPrice: true,
+          type: true,
+          discount: true,
+        },
+        brand: {
+          id: true,
+          name: true,
+          slug: true,
+          logo: true,
+        },
+      },
+      take: 5,
+    });
+
+    return await Promise.all(
+      findProducts.map(async (product) => {
+        const colors = await Promise.all(
+          product?.colors?.map(async (_) => {
+            // const findColorsByImage = await this.imagesRepository.find({
+            //   where: {
+            //     product: {
+            //       id: product.id,
+            //     },
+            //     color: {
+            //       id: _?.id,
+            //     },
+            //   },
+            // });
+            const sizes = await Promise.all(
+              product?.sizes?.map(async (size) => {
+                const total = await this.cartsServices.handleFindTotalSold(
+                  _.id,
+                  size.id,
+                  findAccount?.manage?.id
+                    ? findAccount?.manage?.id
+                    : findAccount?.staff?.id,
+                );
+                return {
+                  ...total,
+                  ...size,
+                };
+              }),
+            );
+            return {
+              ..._,
+              sizes,
+              // images: findColorsByImage,
+            };
+          }) ?? [],
+        );
+
+        return {
+          ...product,
+          colors,
+        };
+      }),
+    );
+    // return findProducts;
+    const findImageColors = await Promise.all(
+      findProducts.map(async (_) => {
+        const findProductColors = await this.colorsRepository.find({
+          relations: {
+            images: true,
+          },
+          where: {
+            images: {
+              product: {
+                id: _.id,
+              },
+            },
+            products: {
+              id: _.id,
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            hexCode: true,
+            images: true,
+          },
+        });
+        return {
+          ..._,
+          colors: findProductColors,
+        };
+      }),
+    );
+    return findImageColors;
   }
 
   async handleCountTotalProducts() {

@@ -1,6 +1,15 @@
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  OneToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+
+import { Accounts } from 'src/accounts/entities/account.entity';
 import { BaseModel } from 'src/common/entities/BaseEntity';
 import { Store } from 'src/stores/entities/store.entity';
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 
 @Entity('branches')
 export class Branch extends BaseModel {
@@ -21,4 +30,17 @@ export class Branch extends BaseModel {
 
   @OneToMany(() => Store, (store) => store.branch)
   stores: Store[];
+
+  @OneToMany(() => Accounts, (accounts) => accounts.staff, {
+    cascade: true,
+    onDelete: 'CASCADE',
+  })
+  staffs?: Accounts;
+
+  @OneToOne(() => Accounts, (accounts) => accounts.manage, {
+    cascade: true,
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn()
+  manage?: Accounts | null;
 }

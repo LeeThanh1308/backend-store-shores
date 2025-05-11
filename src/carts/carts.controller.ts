@@ -29,6 +29,24 @@ export class CartsController {
     return await this.cartsService.create(createCartDto, req.user);
   }
 
+  @Post('cashiers')
+  @UseGuards(AuthGuard)
+  async onCreateCashiersCarts(
+    @Req() req: RequestWithUser,
+    @Body() createCartDto: CreateCartDto,
+  ) {
+    return await this.cartsService.handleCreateCashiersCarts(
+      createCartDto,
+      req.user,
+    );
+  }
+
+  @Get('cashiers')
+  @UseGuards(AuthGuard)
+  async onGetCashiersCarts(@Req() req: RequestWithUser) {
+    return await this.cartsService.handleGetCashiersCarts(req.user);
+  }
+
   @Get('me')
   @UseGuards(AuthGuard)
   async onGetMyCarts(@Req() req: RequestWithUser) {

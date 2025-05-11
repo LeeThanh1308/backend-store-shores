@@ -314,7 +314,7 @@ export class AccountsService {
     if (!data) {
       throw new Error();
     }
-    const rating: number = data?.roles?.rating;
+    const rating: any = data?.roles?.rating!;
     if (rating && rating < ratingAccountReq) {
       throw new Error();
     }
@@ -344,13 +344,6 @@ export class AccountsService {
     ratingAccountReq: number,
   ) {
     await this.handleCheckRatingAccount(id, ratingAccountReq);
-    const isExits = await this.handleCheckFieldUpdateExists(id, {
-      email: updateAccountDto.email ?? '',
-      phone: updateAccountDto.phone ?? '',
-    });
-    if (isExits) {
-      return isExits;
-    }
     if (updateAccountDto.password) {
       updateAccountDto.password = await bcrypt.hash(
         updateAccountDto.password,
