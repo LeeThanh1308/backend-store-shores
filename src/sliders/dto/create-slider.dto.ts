@@ -24,7 +24,6 @@ export class CreateSliderDto {
   slug: string;
 
   @IsString()
-  @IsUnique(Slider, 'href', 'id')
   @IsOptional()
   href: string;
 }

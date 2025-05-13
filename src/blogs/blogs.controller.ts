@@ -26,13 +26,40 @@ export class BlogsController {
 
   @Post()
   @UseGuards(AuthGuard)
-  @UserRoles([EnumRoles.CEO, EnumRoles.MANAGER])
   async create(
     @Req() req: RequestWithUser,
     @Body() createProductSizeDto: CreateBlogDto,
   ) {
     const user = req.user;
     return await this.blogsService.create(createProductSizeDto, user);
+  }
+
+  @Get('me/posts')
+  @UseGuards(AuthGuard)
+  async onGetMePosts(@Req() req: RequestWithUser) {
+    const user = req.user;
+    return await this.blogsService.handleGetMePosts(user);
+  }
+
+  @Patch('me/posts/:id')
+  @UseGuards(AuthGuard)
+  async onPatchMePosts(
+    @Req() req: RequestWithUser,
+    @Param('id') id: string,
+    @Body() updateBlogDto: UpdateBlogDto,
+  ) {
+    const user = req.user;
+    return await this.blogsService.handleUpdateMePosts(
+      user,
+      +id,
+      updateBlogDto,
+    );
+  }
+  @Delete('me/posts/:id')
+  @UseGuards(AuthGuard)
+  async onDeleteMePosts(@Req() req: RequestWithUser, @Param('id') id: string) {
+    const user = req.user;
+    return await this.blogsService.handleDeleteMePosts(user, +id);
   }
 
   @Get('list-blogs')
@@ -69,6 +96,8 @@ export class BlogsController {
     return await this.blogsService.findAll();
   }
   @Patch(':id')
+  @UseGuards(AuthGuard)
+  @UserRoles([EnumRoles.MANAGER])
   async update(
     @Param('id') id: string,
     @Body() updateProductSizeDto: UpdateBlogDto,
@@ -77,6 +106,8 @@ export class BlogsController {
   }
 
   @Delete()
+  @UseGuards(AuthGuard)
+  @UserRoles([EnumRoles.MANAGER])
   async remove(@Body() data: { id: string; ids: number[] }) {
     if (data.id) {
       return await this.blogsService.removeOne(+data.id);

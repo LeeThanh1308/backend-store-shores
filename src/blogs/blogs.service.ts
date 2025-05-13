@@ -35,6 +35,76 @@ export class BlogsService {
     }
   }
 
+  async handleGetMePosts(user: Partial<Accounts>) {
+    return await this.blogRepository.find({
+      where: {
+        account: {
+          id: user.id,
+        },
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+  async handleUpdateMePosts(
+    user: Partial<Accounts>,
+    blogID: number,
+    updateBlogDto: UpdateBlogDto,
+  ) {
+    try {
+      const findBlog = await this.blogRepository.findOne({
+        where: {
+          id: blogID,
+          account: {
+            id: user.id,
+          },
+        },
+        order: {
+          createdAt: 'DESC',
+        },
+      });
+      if (!findBlog) {
+        throw new NotFoundException({
+          message: 'Bài viết không tồn tại.',
+        });
+      }
+      Object.assign(findBlog, updateBlogDto);
+      const result = await this.blogRepository.save(findBlog);
+      return {
+        ...generateMessage(this.nameMessage, 'updated', !!result?.id),
+        data: result,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async handleDeleteMePosts(user: Partial<Accounts>, blogID: number) {
+    try {
+      const findBlog = await this.blogRepository.findOne({
+        where: {
+          id: blogID,
+          account: {
+            id: user.id,
+          },
+        },
+        order: {
+          createdAt: 'DESC',
+        },
+      });
+      if (!findBlog) {
+        throw new NotFoundException({
+          message: 'Bài viết không tồn tại.',
+        });
+      }
+      await this.blogRepository.remove(findBlog);
+      return generateMessage(this.nameMessage, 'deleted', true);
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async handleGetListBlogs(
     user: Accounts,
     page: number = 1,
